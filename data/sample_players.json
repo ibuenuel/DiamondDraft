@@ -74,5 +74,13 @@
   {"type": "Pitcher", "name": "Logan Webb", "mlb_team": "SF", "position": "SP", "stats": {"W": 11, "SO": 183, "IP": 216.0, "SV": 0, "ERA": 3.59, "L": 13}},
   {"type": "Pitcher", "name": "Yoshinobu Yamamoto", "mlb_team": "LAD", "position": "SP", "stats": {"W": 7, "SO": 113, "IP": 90.0, "SV": 0, "ERA": 3.00, "L": 2}},
   {"type": "Pitcher", "name": "Luis Castillo", "mlb_team": "SEA", "position": "SP", "stats": {"W": 16, "SO": 196, "IP": 200.0, "SV": 0, "ERA": 3.06, "L": 12}},
-  {"type": "Pitcher", "name": "Blake Snell", "mlb_team": "SF", "position": "SP", "stats": {"W": 5, "SO": 129, "IP": 104.0, "SV": 0, "ERA": 3.12, "L": 6}}
+  {"type": "Pitcher", "name": "Blake Snell", "mlb_team": "SF", "position": "SP", "stats": {"W": 5, "SO": 129, "IP": 104.0, "SV": 0, "ERA": 3.12, "L": 6}},
+  {"type": "Batter", "name": "Gleyber Torres", "mlb_team": "NYY", "position": "2B", "stats": {"HR": 15, "RBI": 63, "R": 66, "SB": 5, "H": 125, "SO": 101}},
+  {"type": "Batter", "name": "Gavin Lux", "mlb_team": "LAD", "position": "2B", "stats": {"HR": 7, "RBI": 33, "R": 44, "SB": 6, "H": 84, "SO": 79}},
+  {"type": "Batter", "name": "Sean Murphy", "mlb_team": "ATL", "position": "C", "stats": {"HR": 10, "RBI": 45, "R": 40, "SB": 1, "H": 88, "SO": 95}},
+  {"type": "Batter", "name": "Ryan Jeffers", "mlb_team": "MIN", "position": "C", "stats": {"HR": 23, "RBI": 69, "R": 57, "SB": 0, "H": 103, "SO": 134}},
+  {"type": "Batter", "name": "Marcell Ozuna", "mlb_team": "ATL", "position": "DH", "stats": {"HR": 39, "RBI": 103, "R": 91, "SB": 1, "H": 153, "SO": 136}},
+  {"type": "Batter", "name": "J.D. Martinez", "mlb_team": "NYM", "position": "DH", "stats": {"HR": 16, "RBI": 64, "R": 49, "SB": 1, "H": 117, "SO": 108}},
+  {"type": "Batter", "name": "Jorge Soler", "mlb_team": "SF", "position": "DH", "stats": {"HR": 17, "RBI": 55, "R": 53, "SB": 1, "H": 94, "SO": 143}},
+  {"type": "Batter", "name": "Giancarlo Stanton", "mlb_team": "NYY", "position": "DH", "stats": {"HR": 27, "RBI": 72, "R": 52, "SB": 0, "H": 93, "SO": 139}}
 ]
