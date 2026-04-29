@@ -144,13 +144,13 @@ python main.py
 ## Minimum Goals (guaranteed by course end)
 
 - [x] Load player data via pybaseball
-- [ ] Snake Draft: human picks interactively, CPU picks by stat rank
-- [ ] Fantasy points calculated per scoring table
-- [ ] 10-week season with weekly matchups
-- [ ] Standings updated after each week
-- [ ] Save / load game state (JSON)
-- [ ] Working tkinter GUI
-- [ ] Clean OOP structure with Batter/Pitcher inheriting from Player
+- [x] Snake Draft: human picks interactively, CPU picks by stat rank
+- [x] Fantasy points calculated per scoring table
+- [x] 10-week season with weekly matchups
+- [x] Standings updated after each week
+- [x] Save / load game state (JSON)
+- [x] Working tkinter GUI
+- [x] Clean OOP structure with Batter/Pitcher inheriting from Player
 
 ## Extension Goals
 
