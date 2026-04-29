@@ -65,7 +65,7 @@ class DataLoader:
             self._save_cache(players)
             return players
         except Exception as exc:
-            logger.warning("pybaseball fetch failed (%s); falling back to sample data.", exc)
+            logger.debug("pybaseball fetch failed (%s); falling back to sample data.", exc)
 
         return self._load_sample()
 

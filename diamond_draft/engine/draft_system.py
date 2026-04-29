@@ -37,6 +37,7 @@ class DraftSystem:
     def total_picks(self) -> int:
         return len(self._pick_sequence)
 
+    @property
     def is_complete(self) -> bool:
         return self._current_pick >= len(self._pick_sequence)
 
@@ -49,7 +50,7 @@ class DraftSystem:
 
     def make_pick(self, player: Player) -> None:
         """Draft a player to the current team and advance the pick clock."""
-        if self.is_complete():
+        if self.is_complete:
             raise RuntimeError("Draft is already complete.")
         if player not in self._available:
             raise ValueError(f"{player.name} is no longer available.")
@@ -79,7 +80,7 @@ class DraftSystem:
         Returns the list of players the CPU teams selected.
         """
         picked: list[Player] = []
-        while not self.is_complete() and not self.current_team.is_human:
+        while not self.is_complete and not self.current_team.is_human:
             player = self.cpu_pick()
             self.make_pick(player)
             picked.append(player)

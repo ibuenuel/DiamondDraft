@@ -17,8 +17,9 @@ class PlayerTable(ttk.Treeview):
     Clicking a column header toggles ascending/descending sort.
     """
 
-    _BASE_COLUMNS = ("name", "mlb_team", "position", "pts")
+    _BASE_COLUMNS = ("#", "name", "mlb_team", "position", "pts")
     _COLUMN_LABELS = {
+        "#": "#",
         "name": "Name",
         "mlb_team": "Team",
         "position": "Pos",
@@ -52,11 +53,7 @@ class PlayerTable(ttk.Treeview):
         sel = self.selection()
         if not sel:
             return None
-        idx = int(self.item(sel[0], "values")[0]) - 1
-        # Retrieve from the current sorted display order
-        row_id = sel[0]
-        item_vals = self.item(row_id, "values")
-        name = item_vals[1]
+        name = self.item(sel[0], "values")[1]  # values: (#, name, team, pos, pts)
         return next((p for p in self._players if p.name == name), None)
 
     def clear(self) -> None:
@@ -68,12 +65,17 @@ class PlayerTable(ttk.Treeview):
 
     def _setup_columns(self) -> None:
         self["columns"] = self._BASE_COLUMNS
+        col_config = {
+            "#":        (40,  tk.CENTER, False),
+            "name":     (180, tk.W,      True),
+            "mlb_team": (70,  tk.CENTER, False),
+            "position": (50,  tk.CENTER, False),
+            "pts":      (70,  tk.CENTER, False),
+        }
         for col in self._BASE_COLUMNS:
-            label = self._COLUMN_LABELS[col]
-            anchor = tk.W if col == "name" else tk.CENTER
-            width = 180 if col == "name" else 70
-            self.heading(col, text=label, command=lambda c=col: self._sort_by(c))
-            self.column(col, anchor=anchor, width=width, stretch=(col == "name"))
+            width, anchor, stretch = col_config[col]
+            self.heading(col, text=self._COLUMN_LABELS[col], command=lambda c=col: self._sort_by(c))
+            self.column(col, anchor=anchor, width=width, stretch=stretch)
 
     def _setup_bindings(self) -> None:
         if self._on_select:

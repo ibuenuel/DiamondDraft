@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import font as tkfont
+from tkinter import font as tkfont, ttk
 from typing import Any
 
 # Colour palette
@@ -68,7 +68,7 @@ class App(tk.Tk):
         self.show_screen(HomeScreen)
 
     def _apply_theme(self) -> None:
-        style = tk.ttk.Style(self)
+        style = ttk.Style(self)
         style.theme_use("clam")
 
         # Treeview

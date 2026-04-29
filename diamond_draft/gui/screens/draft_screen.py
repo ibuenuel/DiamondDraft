@@ -230,6 +230,10 @@ class DraftScreen(tk.Frame):
     # ------------------------------------------------------------------
 
     def _finish_draft(self) -> None:
+        if getattr(self, "_finishing", False):
+            return
+        self._finishing = True
+
         from diamond_draft.engine.season_simulator import SeasonSimulator
         from diamond_draft.gui.screens.season_screen import SeasonScreen
 
@@ -237,8 +241,15 @@ class DraftScreen(tk.Frame):
         league.generate_schedule()
         self._app.league = league
         self._app.simulator = SeasonSimulator(league=league)
-        messagebox.showinfo("Draft Complete!", "All teams have been filled. The season begins!")
-        self._app.show_screen(SeasonScreen)
+
+        # Defer the screen switch so we're fully out of the current event handler
+        # before destroying this frame; avoids the nested-event-loop issue that
+        # messagebox.showinfo() creates and which can call _finish_draft twice.
+        def _transition():
+            messagebox.showinfo("Draft Complete!", "All teams have been filled. The season begins!")
+            self._app.show_screen(SeasonScreen)
+
+        self._app.after(0, _transition)
 
     def _refresh_header(self) -> None:
         if self._draft.is_complete:
