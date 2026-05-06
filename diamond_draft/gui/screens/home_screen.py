@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 import tkinter as tk
-from tkinter import messagebox, simpledialog, ttk
+from tkinter import messagebox, ttk
 
 from diamond_draft.gui.app import (
     ACCENT,
@@ -81,20 +81,25 @@ class HomeScreen(tk.Frame):
     # Data loading (background thread)
     # ------------------------------------------------------------------
 
-    def _start_loading(self) -> None:
-        threading.Thread(target=self._load_data, daemon=True).start()
+    def _start_loading(self, year: int | None = None) -> None:
+        if year is None:
+            year = self._app.current_year
+        self._new_btn.configure(state=tk.DISABLED)
+        self._status_var.set(f"Loading {year} player data…")
+        threading.Thread(target=self._load_data, args=(year,), daemon=True).start()
 
-    def _load_data(self) -> None:
+    def _load_data(self, year: int) -> None:
         try:
-            players = DataLoader(use_cache=True).load()
-            self.after(0, lambda: self._on_load_done(players))
+            players = DataLoader(year=year, use_cache=True).load()
+            self.after(0, lambda: self._on_load_done(players, year))
         except Exception as exc:
             self.after(0, lambda: self._on_load_error(exc))
 
-    def _on_load_done(self, players: list) -> None:
+    def _on_load_done(self, players: list, year: int) -> None:
         self._app.players = players
+        self._app.current_year = year
         self._app.save_manager = SaveManager()
-        self._status_var.set(f"{len(players)} players loaded — ready!")
+        self._status_var.set(f"{len(players)} players loaded ({year}) — ready!")
         self._new_btn.configure(state=tk.NORMAL)
 
     def _on_load_error(self, exc: Exception) -> None:
@@ -106,9 +111,28 @@ class HomeScreen(tk.Frame):
     # ------------------------------------------------------------------
 
     def _on_new_game(self) -> None:
-        from diamond_draft.gui.screens.draft_screen import DraftScreen
+        year = _pick_year(self._app, self._app.current_year)
+        if year is None:
+            return
 
-        self._app.show_screen(DraftScreen)
+        def _start():
+            from diamond_draft.gui.screens.draft_screen import DraftScreen
+            self._app.show_screen(DraftScreen)
+
+        if year != self._app.current_year:
+            self._start_loading(year)
+            # After loading completes _on_load_done enables New Game; user clicks again.
+            # To give a smoother UX we chain _start() as a one-shot post-load callback.
+            self._app.after(0, lambda: self._wait_then_start(_start))
+        else:
+            _start()
+
+    def _wait_then_start(self, callback) -> None:
+        """Poll until players for the new year are loaded, then invoke callback."""
+        if self._new_btn["state"] == tk.NORMAL:
+            callback()
+        else:
+            self.after(200, lambda: self._wait_then_start(callback))
 
     def _on_load_game(self) -> None:
         sm = SaveManager()
@@ -135,6 +159,44 @@ class HomeScreen(tk.Frame):
         self._app.simulator = SeasonSimulator(league=league)
         self._app.simulator.restore_week(week)
         self._app.show_screen(SeasonScreen)
+
+
+_AVAILABLE_YEARS = [2022, 2023, 2024, 2025]
+
+
+def _pick_year(parent: tk.Tk, current_year: int) -> int | None:
+    """Modal dialog for choosing an MLB season year."""
+    dialog = tk.Toplevel(parent)
+    dialog.title("Select Season")
+    dialog.geometry("280x220")
+    dialog.configure(bg="#1a1a2e")
+    dialog.resizable(False, False)
+    dialog.grab_set()
+
+    ttk.Label(dialog, text="Choose an MLB season:").pack(pady=(20, 8))
+
+    selected = tk.IntVar(value=current_year)
+    for year in _AVAILABLE_YEARS:
+        ttk.Radiobutton(dialog, text=str(year), variable=selected, value=year).pack(
+            anchor=tk.W, padx=60
+        )
+
+    result: list[int] = []
+
+    def _confirm():
+        result.append(selected.get())
+        dialog.destroy()
+
+    def _cancel():
+        dialog.destroy()
+
+    btn_row = tk.Frame(dialog, bg="#1a1a2e")
+    btn_row.pack(pady=(16, 0))
+    ttk.Button(btn_row, text="Start", command=_confirm).pack(side=tk.LEFT, padx=6)
+    ttk.Button(btn_row, text="Cancel", command=_cancel).pack(side=tk.LEFT, padx=6)
+
+    parent.wait_window(dialog)
+    return result[0] if result else None
 
 
 def _pick_save_slot(parent: tk.Tk, saves: list[str]) -> str | None:

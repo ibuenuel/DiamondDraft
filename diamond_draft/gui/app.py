@@ -42,6 +42,7 @@ class App(tk.Tk):
         self.league = None
         self.simulator = None
         self.save_manager = None
+        self.current_year: int = 2024
 
         self._current_frame: tk.Frame | None = None
 

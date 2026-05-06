@@ -37,19 +37,20 @@ _POSITION_NORM: dict[str, str] = {
 
 class DataLoader:
     """
-    Loads 2024 MLB player data and returns a list of Player objects.
+    Loads MLB player data for a given season year and returns a list of Player objects.
 
     Resolution order:
-      1. Local JSON cache  (data/players_2024.json)
+      1. Local JSON cache  (data/players_YYYY.json)
       2. pybaseball live fetch (requires internet)
       3. Bundled sample data  (data/sample_players.json)
     """
 
-    CACHE_PATH = Path("data/players_2024.json")
     SAMPLE_PATH = Path("data/sample_players.json")
 
-    def __init__(self, use_cache: bool = True) -> None:
+    def __init__(self, year: int = 2024, use_cache: bool = True) -> None:
+        self.year = year
         self._use_cache = use_cache
+        self.CACHE_PATH = Path(f"data/players_{year}.json")
 
     # ------------------------------------------------------------------
     # Public API
@@ -78,11 +79,11 @@ class DataLoader:
 
         pybaseball.cache.enable()
 
-        batting_df = pybaseball.batting_stats(2024, qual=50)
-        pitching_df = pybaseball.pitching_stats(2024, qual=20)
+        batting_df = pybaseball.batting_stats(self.year, qual=50)
+        pitching_df = pybaseball.pitching_stats(self.year, qual=20)
 
         try:
-            fielding_df = pybaseball.fielding_stats(2024, qual=10)
+            fielding_df = pybaseball.fielding_stats(self.year, qual=10)
             position_map = self._build_position_map(fielding_df)
         except Exception:
             logger.warning("fielding_stats fetch failed; using default positions.")
