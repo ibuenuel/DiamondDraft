@@ -28,7 +28,6 @@ class HomeScreen(tk.Frame):
         super().__init__(parent, bg=DARK_BG)
         self._app = parent
         self._build_ui()
-        self._start_loading()
 
     # ------------------------------------------------------------------
     # UI construction
@@ -45,7 +44,7 @@ class HomeScreen(tk.Frame):
             style="Subtitle.TLabel",
         ).pack(pady=(4, 0))
 
-        self._status_var = tk.StringVar(value="Loading player data…")
+        self._status_var = tk.StringVar(value="Select a season to get started.")
         ttk.Label(
             self, textvariable=self._status_var, style="Subtitle.TLabel"
         ).pack(pady=(30, 0))
@@ -58,7 +57,6 @@ class HomeScreen(tk.Frame):
             text="New Game",
             command=self._on_new_game,
             width=18,
-            state=tk.DISABLED,
         )
         self._new_btn.pack(pady=8)
 
@@ -98,6 +96,7 @@ class HomeScreen(tk.Frame):
     def _on_load_done(self, players: list, year: int) -> None:
         self._app.players = players
         self._app.current_year = year
+        self._app.loaded_year = year
         self._app.save_manager = SaveManager()
         self._status_var.set(f"{len(players)} players loaded ({year}) — ready!")
         self._new_btn.configure(state=tk.NORMAL)
@@ -119,17 +118,15 @@ class HomeScreen(tk.Frame):
             from diamond_draft.gui.screens.draft_screen import DraftScreen
             self._app.show_screen(DraftScreen)
 
-        if year != self._app.current_year:
-            self._start_loading(year)
-            # After loading completes _on_load_done enables New Game; user clicks again.
-            # To give a smoother UX we chain _start() as a one-shot post-load callback.
-            self._app.after(0, lambda: self._wait_then_start(_start))
-        else:
+        if self._app.loaded_year == year:
             _start()
+        else:
+            self._start_loading(year)
+            self._wait_then_start(_start)
 
     def _wait_then_start(self, callback) -> None:
-        """Poll until players for the new year are loaded, then invoke callback."""
-        if self._new_btn["state"] == tk.NORMAL:
+        """Poll every 200 ms until the background load finishes, then invoke callback."""
+        if self._app.loaded_year == self._app.current_year:
             callback()
         else:
             self.after(200, lambda: self._wait_then_start(callback))

@@ -42,7 +42,8 @@ class App(tk.Tk):
         self.league = None
         self.simulator = None
         self.save_manager = None
-        self.current_year: int = 2024
+        self.current_year: int = 2024   # last selected year in dialog
+        self.loaded_year: int | None = None  # year whose data is in self.players
 
         self._current_frame: tk.Frame | None = None
 
