@@ -88,17 +88,17 @@ class HomeScreen(tk.Frame):
 
     def _load_data(self, year: int) -> None:
         try:
-            players = DataLoader(year=year, use_cache=True).load()
-            self.after(0, lambda: self._on_load_done(players, year))
+            players, source = DataLoader(year=year, use_cache=True).load()
+            self.after(0, lambda: self._on_load_done(players, year, source))
         except Exception as exc:
             self.after(0, lambda: self._on_load_error(exc))
 
-    def _on_load_done(self, players: list, year: int) -> None:
+    def _on_load_done(self, players: list, year: int, source: str) -> None:
         self._app.players = players
         self._app.current_year = year
         self._app.loaded_year = year
         self._app.save_manager = SaveManager()
-        self._status_var.set(f"{len(players)} players loaded ({year}) — ready!")
+        self._status_var.set(f"{len(players)} players loaded ({year}, {source}) — ready!")
         self._new_btn.configure(state=tk.NORMAL)
 
     def _on_load_error(self, exc: Exception) -> None:

@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 
 from diamond_draft.models.player import Batter, Pitcher, Player
 
 logger = logging.getLogger(__name__)
+
+# Anchor all data paths to the project root (two levels up from this file).
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_DATA_DIR = _PROJECT_ROOT / "data"
 
 # Pybaseball column name -> our stats key
 _BATTING_COL_MAP: dict[str, str] = {
@@ -45,30 +50,34 @@ class DataLoader:
       3. Bundled sample data  (data/sample_players.json)
     """
 
-    SAMPLE_PATH = Path("data/sample_players.json")
+    SAMPLE_PATH = _DATA_DIR / "sample_players.json"
 
     def __init__(self, year: int = 2024, use_cache: bool = True) -> None:
         self.year = year
         self._use_cache = use_cache
-        self.CACHE_PATH = Path(f"data/players_{year}.json")
+        self.CACHE_PATH = _DATA_DIR / f"players_{year}.json"
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def load(self) -> list[Player]:
+    def load(self) -> tuple[list[Player], str]:
+        """
+        Returns (players, source) where source is 'cache', 'live', or 'sample'.
+        """
         if self._use_cache and self.CACHE_PATH.exists():
             logger.info("Loading players from cache: %s", self.CACHE_PATH)
-            return self._load_json(self.CACHE_PATH)
+            return self._load_json(self.CACHE_PATH), "cache"
 
         try:
             players = self._fetch_from_pybaseball()
             self._save_cache(players)
-            return players
+            return players, "live"
         except Exception as exc:
-            logger.debug("pybaseball fetch failed (%s); falling back to sample data.", exc)
+            logger.warning("pybaseball fetch failed: %s", exc, exc_info=True)
 
-        return self._load_sample()
+        logger.warning("Falling back to bundled sample data for %d.", self.year)
+        return self._load_sample(), "sample"
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -79,8 +88,7 @@ class DataLoader:
 
         pybaseball.cache.enable()
 
-        batting_df = pybaseball.batting_stats(self.year, qual=50)
-        pitching_df = pybaseball.pitching_stats(self.year, qual=20)
+        batting_df, pitching_df = self._fetch_stats(pybaseball)
 
         try:
             fielding_df = pybaseball.fielding_stats(self.year, qual=10)
@@ -99,11 +107,29 @@ class DataLoader:
         ]
 
         # Deduplicate: a two-way player (e.g. Ohtani) may appear in both lists.
-        # Keep the pitcher entry in the pitchers list and skip in batters.
         pitcher_names = {p.name for p in pitchers}
         batters = [b for b in batters if b.name not in pitcher_names]
 
         return batters + pitchers
+
+    def _fetch_stats(self, pybaseball):
+        """Try Fangraphs first; fall back to Baseball Reference on 403."""
+        import requests
+
+        try:
+            batting_df = pybaseball.batting_stats(self.year, qual=50)
+            pitching_df = pybaseball.pitching_stats(self.year, qual=20)
+            return batting_df, pitching_df
+        except requests.exceptions.HTTPError as exc:
+            if "403" not in str(exc):
+                raise
+            logger.warning("Fangraphs 403 — switching to Baseball Reference.")
+
+        batting_df = pybaseball.batting_stats_bref(self.year)
+        batting_df = batting_df[batting_df["PA"] >= 100]
+        pitching_df = pybaseball.pitching_stats_bref(self.year)
+        pitching_df = pitching_df[pitching_df["IP"] >= 20]
+        return batting_df, pitching_df
 
     def _build_position_map(self, fielding_df) -> dict[str, str]:
         """Map player name -> normalised position from fielding data."""
@@ -117,9 +143,30 @@ class DataLoader:
                 pos_map.setdefault(name, normalised)
         return pos_map
 
+    @staticmethod
+    def _fix_name(raw) -> str:
+        """Repair names that contain literal \\xNN escape sequences instead of Unicode.
+
+        pybaseball/bref sometimes returns 'Jos\\xc3\\xa9 Abreu' (backslash+x+hex as
+        actual characters) instead of 'José Abreu'. Convert those sequences to bytes
+        and decode as UTF-8 to recover the original character.
+        """
+        s = str(raw).strip()
+        if "\\" not in s:
+            return s
+        try:
+            fixed = re.sub(
+                r"\\x([0-9a-fA-F]{2})",
+                lambda m: chr(int(m.group(1), 16)),
+                s,
+            )
+            return fixed.encode("latin-1").decode("utf-8")
+        except (UnicodeDecodeError, UnicodeEncodeError):
+            return s
+
     def _build_batter(self, row, position_map: dict[str, str]) -> Batter:
-        name = str(row.get("Name", "Unknown")).strip()
-        team = str(row.get("Team", "???")).strip()
+        name = self._fix_name(row.get("Name", "Unknown"))
+        team = str(row.get("Team") or row.get("Tm") or "???").strip()
         position = position_map.get(name, "OF")  # default to OF if unknown
         if position not in Batter.POSITIONS:
             position = "OF"
@@ -131,8 +178,8 @@ class DataLoader:
         return Batter(name=name, mlb_team=team, position=position, stats=stats)
 
     def _build_pitcher(self, row) -> Pitcher:
-        name = str(row.get("Name", "Unknown")).strip()
-        team = str(row.get("Team", "???")).strip()
+        name = self._fix_name(row.get("Name", "Unknown"))
+        team = str(row.get("Team") or row.get("Tm") or "???").strip()
         stats = {
             key: float(row.get(col, 0) or 0)
             for col, key in _PITCHING_COL_MAP.items()
@@ -146,7 +193,7 @@ class DataLoader:
     def _save_cache(self, players: list[Player]) -> None:
         self.CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(self.CACHE_PATH, "w", encoding="utf-8") as fh:
-            json.dump([p.to_dict() for p in players], fh, indent=2)
+            json.dump([p.to_dict() for p in players], fh, indent=2, ensure_ascii=False)
         logger.info("Cached %d players to %s", len(players), self.CACHE_PATH)
 
     def _load_json(self, path: Path) -> list[Player]:
