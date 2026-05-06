@@ -32,3 +32,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Data File
+data/players_*.json
