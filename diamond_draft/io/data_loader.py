@@ -100,6 +100,7 @@ class DataLoader:
     def _build_batter(self, split: dict) -> Batter:
         name = split["player"]["fullName"]
         team = split["team"]["name"]
+        mlb_id = int(split["player"]["id"])
         pos = MLBApiConfig.POSITION_ALIASES.get(
             split["position"]["abbreviation"],
             split["position"]["abbreviation"],
@@ -115,11 +116,12 @@ class DataLoader:
             "H":   float(s.get("hits", 0)),
             "SO":  float(s.get("strikeOuts", 0)),
         }
-        return Batter(name=name, mlb_team=team, position=pos, stats=stats)
+        return Batter(name=name, mlb_team=team, position=pos, stats=stats, mlb_id=mlb_id)
 
     def _build_pitcher(self, split: dict) -> Pitcher:
         name = split["player"]["fullName"]
         team = split["team"]["name"]
+        mlb_id = int(split["player"]["id"])
         s = split["stat"]
         stats = {
             "W":   float(s.get("wins", 0)),
@@ -129,7 +131,7 @@ class DataLoader:
             "ERA": float(s.get("era", 0)),
             "L":   float(s.get("losses", 0)),
         }
-        return Pitcher(name=name, mlb_team=team, position="SP", stats=stats)
+        return Pitcher(name=name, mlb_team=team, position="SP", stats=stats, mlb_id=mlb_id)
 
     def _validate_positions(self, players: list[Player]) -> None:
         positions = {p.position for p in players}

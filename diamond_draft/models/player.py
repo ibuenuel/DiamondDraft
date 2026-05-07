@@ -13,6 +13,7 @@ class Player(ABC):
     mlb_team: str
     position: str
     stats: dict[str, float] = field(default_factory=dict)
+    mlb_id: int | None = None
 
     @property
     def player_id(self) -> str:
@@ -28,6 +29,7 @@ class Player(ABC):
             "mlb_team": self.mlb_team,
             "position": self.position,
             "stats": self.stats,
+            "mlb_id": self.mlb_id,
         }
 
     @classmethod
@@ -38,6 +40,7 @@ class Player(ABC):
             mlb_team=data["mlb_team"],
             position=data["position"],
             stats=data["stats"],
+            mlb_id=data.get("mlb_id"),
         )
 
     def __str__(self) -> str:

@@ -5,7 +5,36 @@ from tkinter import ttk
 from typing import Callable
 
 from diamond_draft.engine.score_engine import ScoreEngine
+from diamond_draft.gui.app import ACCENT, PANEL_BG, TEXT_PRIMARY
 from diamond_draft.models.player import Player
+
+_DARK_STYLE_APPLIED = False
+
+
+def _apply_dark_treeview_style() -> None:
+    """Apply dark styling to all TTK Treeviews. Called once at first PlayerTable creation."""
+    global _DARK_STYLE_APPLIED
+    if _DARK_STYLE_APPLIED:
+        return
+    style = ttk.Style()
+    style.configure(
+        "Treeview",
+        background=PANEL_BG,
+        foreground=TEXT_PRIMARY,
+        fieldbackground=PANEL_BG,
+        rowheight=26,
+        font=("Segoe UI", 11),
+        borderwidth=0,
+    )
+    style.configure(
+        "Treeview.Heading",
+        background="#0f3460",
+        foreground=TEXT_PRIMARY,
+        font=("Segoe UI", 11, "bold"),
+        relief="flat",
+    )
+    style.map("Treeview", background=[("selected", ACCENT)])
+    _DARK_STYLE_APPLIED = True
 
 
 class PlayerTable(ttk.Treeview):
@@ -38,6 +67,7 @@ class PlayerTable(ttk.Treeview):
         self._sort_col: str = "pts"
         self._sort_asc: bool = False
 
+        _apply_dark_treeview_style()
         self._setup_columns()
         self._setup_bindings()
 
@@ -80,11 +110,18 @@ class PlayerTable(ttk.Treeview):
     def _setup_bindings(self) -> None:
         if self._on_select:
             self.bind("<<TreeviewSelect>>", self._on_treeview_select)
+        self.bind("<Double-Button-1>", self._on_double_click)
 
     def _on_treeview_select(self, _event) -> None:
         player = self.get_selected()
         if player and self._on_select:
             self._on_select(player)
+
+    def _on_double_click(self, _event) -> None:
+        from diamond_draft.gui.widgets.player_detail_dialog import PlayerDetailDialog
+        player = self.get_selected()
+        if player:
+            PlayerDetailDialog(self.winfo_toplevel(), player)
 
     def _refresh(self) -> None:
         self.delete(*self.get_children())
