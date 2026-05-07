@@ -88,20 +88,16 @@ class PlayerTable(ttk.Treeview):
 
     def _refresh(self) -> None:
         self.delete(*self.get_children())
-        sorted_players = sorted(
-            self._players,
-            key=ScoreEngine.score,
-            reverse=not self._sort_asc if self._sort_col == "pts" else self._sort_asc,
-        )
-        if self._sort_col != "pts":
-            sorted_players = sorted(
-                self._players,
-                key=lambda p: getattr(p, self._sort_col, ""),
-                reverse=self._sort_asc,
-            )
+        if self._sort_col == "pts":
+            key = ScoreEngine.score
+            reverse = not self._sort_asc
+        else:
+            key = lambda p: getattr(p, self._sort_col, "")  # noqa: E731
+            reverse = self._sort_asc
+        sorted_players = sorted(self._players, key=key, reverse=reverse)
 
         for rank, player in enumerate(sorted_players, start=1):
-            pts = f"{ScoreEngine.score(player):.1f}"
+            pts = f"{player.calculate_fantasy_points():.1f}"
             self.insert(
                 "",
                 tk.END,

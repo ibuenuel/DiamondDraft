@@ -1,8 +1,16 @@
 from __future__ import annotations
 
 import tkinter as tk
+from dataclasses import dataclass, field
 from tkinter import font as tkfont, ttk
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from diamond_draft.engine.season_simulator import SeasonSimulator
+    from diamond_draft.io.save_manager import SaveManager
+    from diamond_draft.models.league import League
+    from diamond_draft.models.player import Player
+    from diamond_draft.models.team import Team
 
 # Colour palette
 DARK_BG = "#1a1a2e"
@@ -12,6 +20,20 @@ TEXT_PRIMARY = "#eaeaea"
 TEXT_SECONDARY = "#a0a0b0"
 BUTTON_BG = "#0f3460"
 BUTTON_HOVER = "#e94560"
+
+
+@dataclass
+class GameState:
+    """Holds all mutable game data. Owned by App; injected into screens via App."""
+
+    players: list[Player] = field(default_factory=list)
+    teams: list[Team] = field(default_factory=list)
+    league: League | None = None
+    simulator: SeasonSimulator | None = None
+    save_manager: SaveManager | None = None
+    current_year: int = 2024
+    loaded_year: int | None = None
+    team_name: str = "Your Team"
 
 
 class App(tk.Tk):
@@ -36,16 +58,16 @@ class App(tk.Tk):
 
         self._apply_theme()
 
-        # Shared game state — populated by HomeScreen / DraftScreen
-        self.players: list = []
-        self.teams: list = []
-        self.league = None
-        self.simulator = None
-        self.save_manager = None
-        self.current_year: int = 2024   # last selected year in dialog
-        self.loaded_year: int | None = None  # year whose data is in self.players
+        self.state = GameState()
 
         self._current_frame: tk.Frame | None = None
+
+        # Initialise SaveManager at startup so all screens can use self.state.save_manager
+        from diamond_draft.io.save_manager import SaveManager as SM
+        self.state.save_manager = SM()
+
+        # Navigator is created after the deferred imports to avoid circular imports
+        self.nav: Any = None
 
         # Delay the first screen import to avoid circular import at module level
         self.after(0, self._boot)
@@ -65,8 +87,10 @@ class App(tk.Tk):
     # ------------------------------------------------------------------
 
     def _boot(self) -> None:
+        from diamond_draft.gui.navigation import ScreenNavigator
         from diamond_draft.gui.screens.home_screen import HomeScreen
 
+        self.nav = ScreenNavigator(self)
         self.show_screen(HomeScreen)
 
     def _apply_theme(self) -> None:

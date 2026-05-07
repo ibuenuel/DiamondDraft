@@ -13,14 +13,22 @@ logger = logging.getLogger(__name__)
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _DATA_DIR = _PROJECT_ROOT / "data"
 
-_BASE_URL = "https://statsapi.mlb.com/api/v1"
+# Positions that must be present in the player pool for a valid draft
+_REQUIRED_POSITIONS: frozenset[str] = frozenset({"C", "1B", "2B", "3B", "SS", "DH"})
 
-_POSITION_NORM: dict[str, str] = {
-    "LF": "OF",
-    "CF": "OF",
-    "RF": "OF",
-    "P": "SP",
-}
+
+class MLBApiConfig:
+    """Central configuration for the MLB Stats API client."""
+
+    BASE_URL = "https://statsapi.mlb.com/api/v1"
+    REQUEST_TIMEOUT = 15
+    QUALIFIED_PLAYER_LIMIT = 500
+    POSITION_ALIASES: dict[str, str] = {
+        "LF": "OF",
+        "CF": "OF",
+        "RF": "OF",
+        "P": "SP",
+    }
 
 
 class DataLoader:
@@ -54,7 +62,7 @@ class DataLoader:
             players = self._fetch_from_mlb_api()
             self._save_cache(players)
             return players, "live"
-        except Exception as exc:
+        except (requests.RequestException, ValueError, KeyError, RuntimeError) as exc:
             logger.warning("MLB Stats API fetch failed: %s", exc, exc_info=True)
 
         logger.warning("Falling back to bundled sample data for %d.", self.year)
@@ -75,11 +83,11 @@ class DataLoader:
 
     def _fetch_group(self, group: str) -> list[Player]:
         url = (
-            f"{_BASE_URL}/stats"
+            f"{MLBApiConfig.BASE_URL}/stats"
             f"?stats=season&group={group}&season={self.year}"
-            f"&playerPool=qualified&limit=500"
+            f"&playerPool=qualified&limit={MLBApiConfig.QUALIFIED_PLAYER_LIMIT}"
         )
-        resp = requests.get(url, timeout=15)
+        resp = requests.get(url, timeout=MLBApiConfig.REQUEST_TIMEOUT)
         resp.raise_for_status()
         splits = resp.json()["stats"][0]["splits"]
         if group == "hitting":
@@ -89,7 +97,7 @@ class DataLoader:
     def _build_batter(self, split: dict) -> Batter:
         name = split["player"]["fullName"]
         team = split["team"]["name"]
-        pos = _POSITION_NORM.get(
+        pos = MLBApiConfig.POSITION_ALIASES.get(
             split["position"]["abbreviation"],
             split["position"]["abbreviation"],
         )
@@ -121,10 +129,8 @@ class DataLoader:
         return Pitcher(name=name, mlb_team=team, position="SP", stats=stats)
 
     def _validate_positions(self, players: list[Player]) -> None:
-        from diamond_draft.models.team import Team
         positions = {p.position for p in players}
-        required = set(Team.SLOT_REQUIREMENTS) - {"SP", "OF"}
-        missing = required - positions
+        missing = _REQUIRED_POSITIONS - positions
         if missing:
             raise RuntimeError(
                 f"Player pool missing positions {missing}. "

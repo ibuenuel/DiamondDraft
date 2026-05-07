@@ -13,10 +13,13 @@ class Matchup:
     away: Team
     week: int
 
+    def scores(self) -> tuple[float, float]:
+        """Return (home_points, away_points). Centralises the score calculation."""
+        return self.home.total_points(), self.away.total_points()
+
     def determine_winner(self) -> Team | None:
         """Returns the winning team, or None on a tie."""
-        home_pts = self.home.total_points()
-        away_pts = self.away.total_points()
+        home_pts, away_pts = self.scores()
         if home_pts > away_pts:
             return self.home
         if away_pts > home_pts:
@@ -24,16 +27,20 @@ class Matchup:
         return None  # tie
 
     def summary(self) -> dict:
-        home_pts = self.home.total_points()
-        away_pts = self.away.total_points()
-        winner = self.determine_winner()
+        home_pts, away_pts = self.scores()
+        if home_pts > away_pts:
+            winner_name = self.home.name
+        elif away_pts > home_pts:
+            winner_name = self.away.name
+        else:
+            winner_name = "Tie"
         return {
             "week": self.week,
             "home": self.home.name,
             "away": self.away.name,
             "home_points": round(home_pts, 2),
             "away_points": round(away_pts, 2),
-            "winner": winner.name if winner else "Tie",
+            "winner": winner_name,
         }
 
     def to_dict(self) -> dict:

@@ -91,9 +91,9 @@ class StandingsScreen(tk.Frame):
     # ------------------------------------------------------------------
 
     def _load_standings(self) -> None:
-        for row in self._app.league.get_standings():
+        for row in self._app.state.league.get_standings():
             team_obj = next(
-                t for t in self._app.teams if t.name == row["team"]
+                t for t in self._app.state.teams if t.name == row["team"]
             )
             tag = "human" if team_obj.is_human else ""
             self._tree.insert(
@@ -120,7 +120,7 @@ class StandingsScreen(tk.Frame):
         if not sel:
             return
         team_name = sel[0]
-        team = next(t for t in self._app.teams if t.name == team_name)
+        team = next(t for t in self._app.state.teams if t.name == team_name)
         self._roster_table.load(team.roster)
 
     # ------------------------------------------------------------------
@@ -128,6 +128,4 @@ class StandingsScreen(tk.Frame):
     # ------------------------------------------------------------------
 
     def _on_back(self) -> None:
-        from diamond_draft.gui.screens.season_screen import SeasonScreen
-
-        self._app.show_screen(SeasonScreen)
+        self._app.nav.to_season()

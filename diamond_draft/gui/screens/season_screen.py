@@ -107,7 +107,7 @@ class SeasonScreen(tk.Frame):
     # ------------------------------------------------------------------
 
     def _refresh(self) -> None:
-        sim = self._app.simulator
+        sim = self._app.state.simulator
         week = sim.current_week
         remaining = sim.weeks_remaining
 
@@ -116,7 +116,7 @@ class SeasonScreen(tk.Frame):
             self._sim_btn.configure(state=tk.DISABLED)
             self._status_var.set("The season is over. Check the final standings!")
         else:
-            self._title_var.set(f"Season — Week {week + 1} of {sim._league.WEEKS}")
+            self._title_var.set(f"Season — Week {week + 1} of {sim.total_weeks}")
             self._status_var.set(f"{remaining} week(s) remaining")
 
         self._refresh_standings()
@@ -124,7 +124,7 @@ class SeasonScreen(tk.Frame):
 
     def _refresh_standings(self) -> None:
         self._standings_tree.delete(*self._standings_tree.get_children())
-        for pos, row in enumerate(self._app.league.get_standings(), start=1):
+        for pos, row in enumerate(self._app.state.league.get_standings(), start=1):
             self._standings_tree.insert(
                 "",
                 tk.END,
@@ -158,7 +158,7 @@ class SeasonScreen(tk.Frame):
     # ------------------------------------------------------------------
 
     def _on_simulate(self) -> None:
-        sim = self._app.simulator
+        sim = self._app.state.simulator
         if sim.is_complete:
             return
         self._last_matchups = sim.simulate_week()
@@ -168,21 +168,17 @@ class SeasonScreen(tk.Frame):
     def _on_view_results(self) -> None:
         if not self._last_matchups:
             return
-        from diamond_draft.gui.screens.matchup_screen import MatchupScreen
-
-        self._app.show_screen(MatchupScreen, matchups=self._last_matchups)
+        self._app.nav.to_matchups(self._last_matchups)
 
     def _on_standings(self) -> None:
-        from diamond_draft.gui.screens.standings_screen import StandingsScreen
-
-        self._app.show_screen(StandingsScreen)
+        self._app.nav.to_standings()
 
     def _on_save(self) -> None:
-        sm = self._app.save_manager
+        sm = self._app.state.save_manager
         path = sm.save(
-            teams=self._app.teams,
-            league=self._app.league,
-            simulator=self._app.simulator,
+            teams=self._app.state.teams,
+            league=self._app.state.league,
+            simulator=self._app.state.simulator,
             slot="autosave",
         )
         messagebox.showinfo("Saved", f"Game saved to {path.name}")

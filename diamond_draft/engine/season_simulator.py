@@ -32,6 +32,10 @@ class SeasonSimulator:
     # ------------------------------------------------------------------
 
     @property
+    def total_weeks(self) -> int:
+        return League.WEEKS
+
+    @property
     def is_complete(self) -> bool:
         return self.current_week >= League.WEEKS
 

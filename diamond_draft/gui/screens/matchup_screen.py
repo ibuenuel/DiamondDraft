@@ -3,7 +3,6 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 
-from diamond_draft.engine.score_engine import ScoreEngine
 from diamond_draft.gui.app import ACCENT, DARK_BG, PANEL_BG, TEXT_PRIMARY, TEXT_SECONDARY, App
 from diamond_draft.models.matchup import Matchup
 from diamond_draft.models.team import Team
@@ -146,8 +145,8 @@ class MatchupScreen(tk.Frame):
             pady=(30, 0),
         )
 
-        for player in sorted(team.roster, key=ScoreEngine.score, reverse=True):
-            pts = ScoreEngine.score(player)
+        for player in sorted(team.roster, key=lambda p: p.calculate_fantasy_points(), reverse=True):
+            pts = player.calculate_fantasy_points()
             line = f"{player.position:<4} {player.name:<22} {pts:>7.1f} pts"
             tk.Label(
                 detail_frame,
@@ -162,6 +161,4 @@ class MatchupScreen(tk.Frame):
     # ------------------------------------------------------------------
 
     def _on_back(self) -> None:
-        from diamond_draft.gui.screens.season_screen import SeasonScreen
-
-        self._app.show_screen(SeasonScreen)
+        self._app.nav.to_season()

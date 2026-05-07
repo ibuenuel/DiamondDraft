@@ -13,7 +13,6 @@ from diamond_draft.gui.app import (
     App,
 )
 from diamond_draft.io.data_loader import DataLoader
-from diamond_draft.io.save_manager import SaveManager
 
 
 class HomeScreen(tk.Frame):
@@ -81,7 +80,7 @@ class HomeScreen(tk.Frame):
 
     def _start_loading(self, year: int | None = None) -> None:
         if year is None:
-            year = self._app.current_year
+            year = self._app.state.current_year
         self._new_btn.configure(state=tk.DISABLED)
         self._status_var.set(f"Loading {year} player data…")
         threading.Thread(target=self._load_data, args=(year,), daemon=True).start()
@@ -94,10 +93,9 @@ class HomeScreen(tk.Frame):
             self.after(0, lambda: self._on_load_error(exc))
 
     def _on_load_done(self, players: list, year: int, source: str) -> None:
-        self._app.players = players
-        self._app.current_year = year
-        self._app.loaded_year = year
-        self._app.save_manager = SaveManager()
+        self._app.state.players = players
+        self._app.state.current_year = year
+        self._app.state.loaded_year = year
         self._status_var.set(f"{len(players)} players loaded ({year}, {source}) — ready!")
         self._new_btn.configure(state=tk.NORMAL)
 
@@ -110,15 +108,19 @@ class HomeScreen(tk.Frame):
     # ------------------------------------------------------------------
 
     def _on_new_game(self) -> None:
-        year = _pick_year(self._app, self._app.current_year)
+        year = _pick_year(self._app, self._app.state.current_year)
         if year is None:
             return
 
-        def _start():
-            from diamond_draft.gui.screens.draft_screen import DraftScreen
-            self._app.show_screen(DraftScreen)
+        team_name = _pick_team_name(self._app)
+        if team_name is None:
+            return
+        self._app.state.team_name = team_name
 
-        if self._app.loaded_year == year:
+        def _start():
+            self._app.nav.to_draft()
+
+        if self._app.state.loaded_year == year:
             _start()
         else:
             self._start_loading(year)
@@ -126,13 +128,13 @@ class HomeScreen(tk.Frame):
 
     def _wait_then_start(self, callback) -> None:
         """Poll every 200 ms until the background load finishes, then invoke callback."""
-        if self._app.loaded_year == self._app.current_year:
+        if self._app.state.loaded_year == self._app.state.current_year:
             callback()
         else:
             self.after(200, lambda: self._wait_then_start(callback))
 
     def _on_load_game(self) -> None:
-        sm = SaveManager()
+        sm = self._app.state.save_manager
         saves = sm.list_saves()
         if not saves:
             messagebox.showinfo("Load Game", "No saved games found.")
@@ -149,13 +151,12 @@ class HomeScreen(tk.Frame):
             return
 
         from diamond_draft.engine.season_simulator import SeasonSimulator
-        from diamond_draft.gui.screens.season_screen import SeasonScreen
 
-        self._app.teams = teams
-        self._app.league = league
-        self._app.simulator = SeasonSimulator(league=league)
-        self._app.simulator.restore_week(week)
-        self._app.show_screen(SeasonScreen)
+        self._app.state.teams = teams
+        self._app.state.league = league
+        self._app.state.simulator = SeasonSimulator(league=league)
+        self._app.state.simulator.restore_week(week)
+        self._app.nav.to_season()
 
 
 _AVAILABLE_YEARS = [2022, 2023, 2024, 2025]
@@ -190,6 +191,53 @@ def _pick_year(parent: tk.Tk, current_year: int) -> int | None:
     btn_row = tk.Frame(dialog, bg="#1a1a2e")
     btn_row.pack(pady=(16, 0))
     ttk.Button(btn_row, text="Start", command=_confirm).pack(side=tk.LEFT, padx=6)
+    ttk.Button(btn_row, text="Cancel", command=_cancel).pack(side=tk.LEFT, padx=6)
+
+    parent.wait_window(dialog)
+    return result[0] if result else None
+
+
+def _pick_team_name(parent: tk.Tk) -> str | None:
+    """Modal dialog for the player to choose their team name.
+
+    Returns the entered name, 'Your Team' if left blank, or None if cancelled.
+    """
+    dialog = tk.Toplevel(parent)
+    dialog.title("Your Team")
+    dialog.geometry("320x180")
+    dialog.configure(bg="#1a1a2e")
+    dialog.resizable(False, False)
+    dialog.grab_set()
+
+    ttk.Label(dialog, text="Enter your team name:").pack(pady=(24, 6))
+
+    name_var = tk.StringVar()
+    entry = ttk.Entry(dialog, textvariable=name_var, width=28, font=("Segoe UI", 11))
+    entry.pack(pady=(0, 4))
+    entry.focus_set()
+
+    ttk.Label(
+        dialog,
+        text='Leave blank to use "Your Team"',
+        style="Subtitle.TLabel",
+        font=("Segoe UI", 9),
+    ).pack()
+
+    result: list[str] = []
+
+    def _confirm():
+        name = name_var.get().strip() or "Your Team"
+        result.append(name)
+        dialog.destroy()
+
+    def _cancel():
+        dialog.destroy()
+
+    entry.bind("<Return>", lambda _: _confirm())
+
+    btn_row = tk.Frame(dialog, bg="#1a1a2e")
+    btn_row.pack(pady=(12, 0))
+    ttk.Button(btn_row, text="Confirm", command=_confirm).pack(side=tk.LEFT, padx=6)
     ttk.Button(btn_row, text="Cancel", command=_cancel).pack(side=tk.LEFT, padx=6)
 
     parent.wait_window(dialog)

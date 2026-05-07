@@ -48,18 +48,16 @@ class ScoreEngine:
         raise TypeError(f"Unknown player type: {type(player)}")
 
     @staticmethod
+    def _weighted_sum(stats: dict[str, float], weights: dict[str, float]) -> float:
+        return sum(stats.get(stat, 0.0) * weight for stat, weight in weights.items())
+
+    @staticmethod
     def _score_batter(player: Batter) -> float:
-        return sum(
-            player.stats.get(stat, 0.0) * weight
-            for stat, weight in ScoreEngine.BATTING_WEIGHTS.items()
-        )
+        return ScoreEngine._weighted_sum(player.stats, ScoreEngine.BATTING_WEIGHTS)
 
     @staticmethod
     def _score_pitcher(player: Pitcher) -> float:
-        base = sum(
-            player.stats.get(stat, 0.0) * weight
-            for stat, weight in ScoreEngine.PITCHING_WEIGHTS.items()
-        )
+        base = ScoreEngine._weighted_sum(player.stats, ScoreEngine.PITCHING_WEIGHTS)
         era = player.stats.get("ERA", 99.0)
         bonus = ScoreEngine.ERA_BONUS if era < ScoreEngine.ERA_BONUS_THRESHOLD else 0.0
         return base + bonus

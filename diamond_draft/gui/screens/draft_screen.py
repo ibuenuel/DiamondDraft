@@ -57,12 +57,13 @@ class DraftScreen(tk.Frame):
     # ------------------------------------------------------------------
 
     def _init_draft(self) -> DraftSystem:
+        names = [self._app.state.team_name] + self._TEAM_NAMES[1:]
         teams = [
             Team(name=name, is_human=(i == 0))
-            for i, name in enumerate(self._TEAM_NAMES)
+            for i, name in enumerate(names)
         ]
-        self._app.teams = teams
-        return DraftSystem(teams=teams, player_pool=self._app.players)
+        self._app.state.teams = teams
+        return DraftSystem(teams=teams, player_pool=self._app.state.players)
 
     # ------------------------------------------------------------------
     # UI construction
@@ -178,7 +179,7 @@ class DraftScreen(tk.Frame):
         can_pick = team.needs_position(player.position)
         self._selection_var.set(
             f"{player.name}  ({player.position}, {player.mlb_team})  "
-            f"— {ScoreEngine.score(player):.1f} pts"
+            f"— {player.calculate_fantasy_points():.1f} pts"
             + ("" if can_pick else "  ✗ slot full")
         )
         self._pick_btn.configure(state=tk.NORMAL if can_pick else tk.DISABLED)
@@ -200,10 +201,8 @@ class DraftScreen(tk.Frame):
         self._advance_cpu_if_needed()
 
     def _on_back(self) -> None:
-        from diamond_draft.gui.screens.home_screen import HomeScreen
-
         if messagebox.askyesno("Leave Draft", "Return to the main menu? Draft progress will be lost."):
-            self._app.show_screen(HomeScreen)
+            self._app.nav.to_home()
 
     # ------------------------------------------------------------------
     # CPU automation
@@ -217,7 +216,7 @@ class DraftScreen(tk.Frame):
             cpu_picks = self._draft.advance_cpu_turns()
             for p in cpu_picks:
                 team_name = next(
-                    t.name for t in self._app.teams
+                    t.name for t in self._app.state.teams
                     if any(r.name == p.name for r in t.roster)
                 )
                 self._log(f"[{team_name}] drafted {p.name} ({p.position})")
@@ -235,19 +234,18 @@ class DraftScreen(tk.Frame):
         self._finishing = True
 
         from diamond_draft.engine.season_simulator import SeasonSimulator
-        from diamond_draft.gui.screens.season_screen import SeasonScreen
 
-        league = League(teams=self._app.teams)
+        league = League(teams=self._app.state.teams)
         league.generate_schedule()
-        self._app.league = league
-        self._app.simulator = SeasonSimulator(league=league)
+        self._app.state.league = league
+        self._app.state.simulator = SeasonSimulator(league=league)
 
         # Defer the screen switch so we're fully out of the current event handler
         # before destroying this frame; avoids the nested-event-loop issue that
         # messagebox.showinfo() creates and which can call _finish_draft twice.
         def _transition():
             messagebox.showinfo("Draft Complete!", "All teams have been filled. The season begins!")
-            self._app.show_screen(SeasonScreen)
+            self._app.nav.to_season()
 
         self._app.after(0, _transition)
 
@@ -263,7 +261,7 @@ class DraftScreen(tk.Frame):
         self._table.load(self._draft.available_players())
 
     def _refresh_roster(self) -> None:
-        human_team = self._app.teams[0]
+        human_team = self._app.state.teams[0]
         lines = []
         for pos, needed in Team.SLOT_REQUIREMENTS.items():
             slot_players = [p for p in human_team.roster if p.position == pos]
