@@ -3,11 +3,19 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 
-from diamond_draft.gui.app import DARK_BG, PANEL_BG, TEXT_PRIMARY, App
+import customtkinter as ctk
+
+from diamond_draft.gui.app import ACCENT, DARK_BG, PANEL_BG, App
 from diamond_draft.gui.widgets.player_table import PlayerTable
+from diamond_draft.gui.widgets.ui_helpers import (
+    card_frame,
+    heading,
+    secondary_button,
+    separator,
+)
 
 
-class StandingsScreen(tk.Frame):
+class StandingsScreen(ctk.CTkFrame):
     """
     Full-page league standings with per-team roster detail.
 
@@ -16,7 +24,7 @@ class StandingsScreen(tk.Frame):
     """
 
     def __init__(self, parent: App) -> None:
-        super().__init__(parent, bg=DARK_BG)
+        super().__init__(parent, fg_color=DARK_BG, corner_radius=0)
         self._app = parent
         self._build_ui()
         self._load_standings()
@@ -27,90 +35,81 @@ class StandingsScreen(tk.Frame):
 
     def _build_ui(self) -> None:
         # Header
-        header = tk.Frame(self, bg=DARK_BG, pady=12)
-        header.pack(fill=tk.X, padx=20)
+        header = ctk.CTkFrame(self, fg_color="transparent")
+        header.pack(fill="x", padx=24, pady=(16, 0))
 
-        ttk.Label(header, text="League Standings", style="Title.TLabel").pack(
-            side=tk.LEFT
-        )
-        ttk.Button(
-            header, text="← Season", command=self._on_back
-        ).pack(side=tk.RIGHT)
+        heading(header, "League Standings", level=1).pack(side="left")
+        secondary_button(header, "← Season", self._on_back, width=110).pack(side="right")
 
-        ttk.Separator(self, orient=tk.HORIZONTAL).pack(fill=tk.X)
+        separator(self).pack(fill="x", pady=(12, 0))
 
-        content = tk.Frame(self, bg=DARK_BG)
-        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=16)
+        content = ctk.CTkFrame(self, fg_color="transparent")
+        content.pack(fill="both", expand=True, padx=24, pady=16)
         content.columnconfigure(0, weight=1)
-        content.rowconfigure(1, weight=1)
+        content.rowconfigure(1, weight=0)
+        content.rowconfigure(3, weight=1)
 
         # Standings table
-        ttk.Label(content, text="Standings", style="Subtitle.TLabel").grid(
-            row=0, column=0, sticky=tk.W
-        )
+        heading(content, "Standings", level=2).grid(row=0, column=0, sticky="w", pady=(0, 6))
+
+        standings_card = card_frame(content)
+        standings_card.grid(row=1, column=0, sticky="ew", pady=(0, 16))
 
         self._tree = ttk.Treeview(
-            content,
+            standings_card,
             columns=("pos", "team", "w", "l", "pts"),
             show="headings",
             height=7,
             selectmode="browse",
         )
-        for col, label, width in [
-            ("pos", "#", 40),
-            ("team", "Team", 160),
-            ("w", "W", 60),
-            ("l", "L", 60),
-            ("pts", "Fantasy Pts", 100),
+        for col, label, width, anchor in [
+            ("pos",  "#",           40,  "center"),
+            ("team", "Team",        200, "w"),
+            ("w",    "W",           70,  "center"),
+            ("l",    "L",           70,  "center"),
+            ("pts",  "Fantasy Pts", 110, "center"),
         ]:
             self._tree.heading(col, text=label)
-            self._tree.column(col, width=width, anchor=tk.CENTER)
-        self._tree.column("team", anchor=tk.W)
+            self._tree.column(col, width=width, anchor=anchor)
         self._tree.bind("<<TreeviewSelect>>", self._on_team_select)
-        self._tree.grid(row=1, column=0, sticky="ew", pady=(4, 16))
+        self._tree.pack(fill="x", padx=8, pady=8)
 
         # Roster detail
-        ttk.Label(content, text="Team Roster", style="Subtitle.TLabel").grid(
-            row=2, column=0, sticky=tk.W
-        )
+        heading(content, "Team Roster", level=2).grid(row=2, column=0, sticky="w", pady=(0, 6))
 
-        roster_frame = tk.Frame(content, bg=PANEL_BG)
-        roster_frame.grid(row=3, column=0, sticky="nsew", pady=(4, 0))
-        content.rowconfigure(3, weight=1)
+        roster_card = card_frame(content)
+        roster_card.grid(row=3, column=0, sticky="nsew")
 
-        self._roster_table = PlayerTable(roster_frame)
+        self._roster_table = PlayerTable(roster_card)
         vsb = ttk.Scrollbar(
-            roster_frame, orient=tk.VERTICAL, command=self._roster_table.yview
+            roster_card, orient="vertical", command=self._roster_table.yview
         )
         self._roster_table.configure(yscrollcommand=vsb.set)
-        vsb.pack(side=tk.RIGHT, fill=tk.Y)
-        self._roster_table.pack(fill=tk.BOTH, expand=True)
+        vsb.pack(side="right", fill="y")
+        self._roster_table.pack(fill="both", expand=True)
 
     # ------------------------------------------------------------------
     # Data loading
     # ------------------------------------------------------------------
 
     def _load_standings(self) -> None:
-        for row in self._app.state.league.get_standings():
+        for row in self._app.game.league.get_standings():
             team_obj = next(
-                t for t in self._app.state.teams if t.name == row["team"]
+                t for t in self._app.game.teams if t.name == row["team"]
             )
             tag = "human" if team_obj.is_human else ""
             self._tree.insert(
                 "",
-                tk.END,
+                "end",
                 iid=row["team"],
                 values=("", row["team"], row["wins"], row["losses"], row["points"]),
                 tags=(tag,),
             )
-        # Highlight human team
-        self._tree.tag_configure("human", foreground="#e94560")
+        self._tree.tag_configure("human", foreground=ACCENT)
 
-        # Number the rows
         for pos, row_id in enumerate(self._tree.get_children(), start=1):
             self._tree.set(row_id, "pos", pos)
 
-        # Auto-select first row
         first = self._tree.get_children()
         if first:
             self._tree.selection_set(first[0])
@@ -120,7 +119,7 @@ class StandingsScreen(tk.Frame):
         if not sel:
             return
         team_name = sel[0]
-        team = next(t for t in self._app.state.teams if t.name == team_name)
+        team = next(t for t in self._app.game.teams if t.name == team_name)
         self._roster_table.load(team.roster)
 
     # ------------------------------------------------------------------

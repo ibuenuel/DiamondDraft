@@ -3,23 +3,25 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+import customtkinter as ctk
+
 from diamond_draft.engine.draft_system import DraftSystem
-from diamond_draft.engine.score_engine import ScoreEngine
-from diamond_draft.gui.app import (
-    ACCENT,
-    DARK_BG,
-    PANEL_BG,
-    TEXT_PRIMARY,
-    TEXT_SECONDARY,
-    App,
-)
+from diamond_draft.gui.app import ACCENT, DARK_BG, PANEL_BG, TEXT_PRIMARY, TEXT_SECONDARY, App
 from diamond_draft.gui.widgets.player_table import PlayerTable
+from diamond_draft.gui.widgets.ui_helpers import (
+    accent_button,
+    body_label,
+    card_frame,
+    heading,
+    secondary_button,
+    separator,
+)
 from diamond_draft.models.league import League
 from diamond_draft.models.player import Player
 from diamond_draft.models.team import Team
 
 
-class DraftScreen(tk.Frame):
+class DraftScreen(ctk.CTkFrame):
     """
     Interactive snake draft UI.
 
@@ -27,10 +29,10 @@ class DraftScreen(tk.Frame):
     ┌─────────────────────────────────────────────────────┐
     │  Header: pick counter + current team                │
     ├────────────────────────┬────────────────────────────┤
-    │  Available players     │  Your roster / CPU log     │
-    │  (PlayerTable)         │                            │
+    │  Available players     │  Your roster / Draft log   │
+    │  (PlayerTable)         │  (CTkTextbox)              │
     ├────────────────────────┴────────────────────────────┤
-    │  [Draft Selected Player]  button                    │
+    │  [Draft Selected Player]  status label              │
     └─────────────────────────────────────────────────────┘
     """
 
@@ -44,7 +46,7 @@ class DraftScreen(tk.Frame):
     ]
 
     def __init__(self, parent: App) -> None:
-        super().__init__(parent, bg=DARK_BG)
+        super().__init__(parent, fg_color=DARK_BG, corner_radius=0)
         self._app = parent
         self._selected_player: Player | None = None
         self._draft = self._init_draft()
@@ -57,115 +59,96 @@ class DraftScreen(tk.Frame):
     # ------------------------------------------------------------------
 
     def _init_draft(self) -> DraftSystem:
-        names = [self._app.state.team_name] + self._TEAM_NAMES[1:]
-        teams = [
-            Team(name=name, is_human=(i == 0))
-            for i, name in enumerate(names)
-        ]
-        self._app.state.teams = teams
-        return DraftSystem(teams=teams, player_pool=self._app.state.players)
+        names = [self._app.game.team_name] + self._TEAM_NAMES[1:]
+        teams = [Team(name=name, is_human=(i == 0)) for i, name in enumerate(names)]
+        self._app.game.teams = teams
+        return DraftSystem(teams=teams, player_pool=self._app.game.players)
 
     # ------------------------------------------------------------------
     # UI construction
     # ------------------------------------------------------------------
 
     def _build_ui(self) -> None:
-        # --- Header ---
-        header = tk.Frame(self, bg=DARK_BG, pady=10)
-        header.pack(fill=tk.X, padx=20)
+        # Header
+        header = ctk.CTkFrame(self, fg_color="transparent")
+        header.pack(fill="x", padx=24, pady=(16, 0))
 
         self._header_var = tk.StringVar()
-        ttk.Label(header, textvariable=self._header_var, style="Title.TLabel").pack(
-            side=tk.LEFT
-        )
+        ctk.CTkLabel(
+            header,
+            textvariable=self._header_var,
+            font=("Segoe UI", 22, "bold"),
+            text_color=ACCENT,
+        ).pack(side="left")
+        secondary_button(header, "← Back", self._on_back, width=90).pack(side="right")
 
-        ttk.Button(
-            header, text="← Back", command=self._on_back
-        ).pack(side=tk.RIGHT)
+        separator(self).pack(fill="x", pady=(12, 0))
 
-        ttk.Separator(self, orient=tk.HORIZONTAL).pack(fill=tk.X)
-
-        # --- Main content ---
-        content = tk.Frame(self, bg=DARK_BG)
-        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        # Main content grid
+        content = ctk.CTkFrame(self, fg_color="transparent")
+        content.pack(fill="both", expand=True, padx=24, pady=12)
         content.columnconfigure(0, weight=3)
         content.columnconfigure(1, weight=2)
         content.rowconfigure(0, weight=1)
 
-        # Left: available players
-        left = ttk.Frame(content, style="Panel.TFrame")
-        left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        # Left card: available players
+        left = card_frame(content)
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
 
-        ttk.Label(left, text="Available Players", style="Subtitle.TLabel").pack(
-            anchor=tk.W, padx=8, pady=(8, 4)
-        )
+        heading(left, "Available Players", level=2).pack(anchor="w", padx=12, pady=(12, 4))
 
-        table_frame = tk.Frame(left, bg=PANEL_BG)
-        table_frame.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
+        table_inner = ctk.CTkFrame(left, fg_color="transparent")
+        table_inner.pack(fill="both", expand=True, padx=8, pady=(0, 8))
 
-        self._table = PlayerTable(
-            table_frame,
-            on_select=self._on_player_selected,
-        )
-        vsb = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self._table.yview)
+        self._table = PlayerTable(table_inner, on_select=self._on_player_selected)
+        vsb = ttk.Scrollbar(table_inner, orient="vertical", command=self._table.yview)
         self._table.configure(yscrollcommand=vsb.set)
-        vsb.pack(side=tk.RIGHT, fill=tk.Y)
-        self._table.pack(fill=tk.BOTH, expand=True)
+        vsb.pack(side="right", fill="y")
+        self._table.pack(fill="both", expand=True)
 
-        # Right panel: your roster + CPU log
-        right = ttk.Frame(content, style="Panel.TFrame")
+        # Right card: roster + log
+        right = card_frame(content)
         right.grid(row=0, column=1, sticky="nsew")
 
-        ttk.Label(right, text="Your Roster", style="Subtitle.TLabel").pack(
-            anchor=tk.W, padx=8, pady=(8, 4)
-        )
+        heading(right, "Your Roster", level=2).pack(anchor="w", padx=12, pady=(12, 4))
 
-        self._roster_text = tk.Text(
+        self._roster_text = ctk.CTkTextbox(
             right,
-            bg=PANEL_BG,
-            fg=TEXT_PRIMARY,
-            font=("Segoe UI", 9),
-            state=tk.DISABLED,
-            height=12,
-            relief=tk.FLAT,
-            padx=6,
-            pady=4,
+            font=("Courier New", 10),
+            fg_color="#0d1022",
+            text_color=TEXT_PRIMARY,
+            corner_radius=8,
+            border_width=0,
+            height=180,
+            state="disabled",
         )
-        self._roster_text.pack(fill=tk.BOTH, expand=True, padx=4)
+        self._roster_text.pack(fill="x", padx=8, pady=(0, 4))
 
-        ttk.Label(right, text="Draft Log", style="Subtitle.TLabel").pack(
-            anchor=tk.W, padx=8, pady=(8, 4)
-        )
+        heading(right, "Draft Log", level=2).pack(anchor="w", padx=12, pady=(8, 4))
 
-        self._log_text = tk.Text(
+        self._log_text = ctk.CTkTextbox(
             right,
-            bg=PANEL_BG,
-            fg=TEXT_SECONDARY,
             font=("Segoe UI", 9),
-            state=tk.DISABLED,
-            height=10,
-            relief=tk.FLAT,
-            padx=6,
-            pady=4,
+            fg_color="#0d1022",
+            text_color=TEXT_SECONDARY,
+            corner_radius=8,
+            border_width=0,
+            state="disabled",
         )
-        self._log_text.pack(fill=tk.BOTH, expand=True, padx=4, pady=(0, 4))
+        self._log_text.pack(fill="both", expand=True, padx=8, pady=(0, 8))
 
-        # --- Footer ---
-        footer = tk.Frame(self, bg=DARK_BG, pady=8)
-        footer.pack(fill=tk.X, padx=20)
+        # Footer
+        footer = ctk.CTkFrame(self, fg_color="transparent")
+        footer.pack(fill="x", padx=24, pady=(0, 16))
 
-        self._pick_btn = ttk.Button(
-            footer,
-            text="Draft Selected Player",
-            command=self._on_pick,
-            state=tk.DISABLED,
+        self._pick_btn = accent_button(
+            footer, "Draft Selected Player", self._on_pick, width=200
         )
-        self._pick_btn.pack(side=tk.LEFT)
+        self._pick_btn.configure(state="disabled")
+        self._pick_btn.pack(side="left")
 
         self._selection_var = tk.StringVar(value="Select a player from the list above.")
-        ttk.Label(footer, textvariable=self._selection_var, style="Subtitle.TLabel").pack(
-            side=tk.LEFT, padx=16
-        )
+        body_label(footer, textvariable=self._selection_var).pack(side="left", padx=16)
 
         self._refresh_table()
 
@@ -182,7 +165,7 @@ class DraftScreen(tk.Frame):
             f"— {player.calculate_fantasy_points():.1f} pts"
             + ("" if can_pick else "  ✗ slot full")
         )
-        self._pick_btn.configure(state=tk.NORMAL if can_pick else tk.DISABLED)
+        self._pick_btn.configure(state="normal" if can_pick else "disabled")
 
     def _on_pick(self) -> None:
         if self._selected_player is None:
@@ -195,7 +178,7 @@ class DraftScreen(tk.Frame):
 
         self._log(f"[You] drafted {self._selected_player.name} ({self._selected_player.position})")
         self._selected_player = None
-        self._pick_btn.configure(state=tk.DISABLED)
+        self._pick_btn.configure(state="disabled")
         self._selection_var.set("Select a player from the list above.")
         self._refresh_after_pick()
         self._advance_cpu_if_needed()
@@ -216,7 +199,7 @@ class DraftScreen(tk.Frame):
             cpu_picks = self._draft.advance_cpu_turns()
             for p in cpu_picks:
                 team_name = next(
-                    t.name for t in self._app.state.teams
+                    t.name for t in self._app.game.teams
                     if any(r.name == p.name for r in t.roster)
                 )
                 self._log(f"[{team_name}] drafted {p.name} ({p.position})")
@@ -235,14 +218,11 @@ class DraftScreen(tk.Frame):
 
         from diamond_draft.engine.season_simulator import SeasonSimulator
 
-        league = League(teams=self._app.state.teams)
+        league = League(teams=self._app.game.teams)
         league.generate_schedule()
-        self._app.state.league = league
-        self._app.state.simulator = SeasonSimulator(league=league)
+        self._app.game.league = league
+        self._app.game.simulator = SeasonSimulator(league=league)
 
-        # Defer the screen switch so we're fully out of the current event handler
-        # before destroying this frame; avoids the nested-event-loop issue that
-        # messagebox.showinfo() creates and which can call _finish_draft twice.
         def _transition():
             messagebox.showinfo("Draft Complete!", "All teams have been filled. The season begins!")
             self._app.nav.to_season()
@@ -261,16 +241,15 @@ class DraftScreen(tk.Frame):
         self._table.load(self._draft.available_players())
 
     def _refresh_roster(self) -> None:
-        human_team = self._app.state.teams[0]
+        human_team = self._app.game.teams[0]
         lines = []
         for pos, needed in Team.SLOT_REQUIREMENTS.items():
             slot_players = [p for p in human_team.roster if p.position == pos]
             for p in slot_players:
                 lines.append(f"  {pos:<4}  {p.name}")
-            remaining = needed - len(slot_players)
-            for _ in range(remaining):
+            for _ in range(needed - len(slot_players)):
                 lines.append(f"  {pos:<4}  —")
-        self._set_text(self._roster_text, "\n".join(lines))
+        _set_textbox(self._roster_text, "\n".join(lines))
 
     def _refresh_after_pick(self) -> None:
         self._refresh_header()
@@ -278,14 +257,14 @@ class DraftScreen(tk.Frame):
         self._refresh_roster()
 
     def _log(self, message: str) -> None:
-        self._log_text.configure(state=tk.NORMAL)
-        self._log_text.insert(tk.END, message + "\n")
-        self._log_text.see(tk.END)
-        self._log_text.configure(state=tk.DISABLED)
+        self._log_text.configure(state="normal")
+        self._log_text.insert("end", message + "\n")
+        self._log_text.see("end")
+        self._log_text.configure(state="disabled")
 
-    @staticmethod
-    def _set_text(widget: tk.Text, text: str) -> None:
-        widget.configure(state=tk.NORMAL)
-        widget.delete("1.0", tk.END)
-        widget.insert(tk.END, text)
-        widget.configure(state=tk.DISABLED)
+
+def _set_textbox(widget: ctk.CTkTextbox, text: str) -> None:
+    widget.configure(state="normal")
+    widget.delete("1.0", "end")
+    widget.insert("end", text)
+    widget.configure(state="disabled")

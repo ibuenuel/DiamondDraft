@@ -3,21 +3,30 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from diamond_draft.gui.app import DARK_BG, PANEL_BG, TEXT_SECONDARY, App
+import customtkinter as ctk
+
+from diamond_draft.gui.app import ACCENT, DARK_BG, PANEL_BG, TEXT_SECONDARY, App
+from diamond_draft.gui.widgets.ui_helpers import (
+    accent_button,
+    body_label,
+    card_frame,
+    heading,
+    secondary_button,
+    separator,
+)
 from diamond_draft.models.matchup import Matchup
 
 
-class SeasonScreen(tk.Frame):
+class SeasonScreen(ctk.CTkFrame):
     """
     Main hub for the regular season.
 
-    Shows the current week, the week's matchups (once simulated), and
-    navigation to Standings.  The "Simulate Week" button runs one week;
-    results open MatchupScreen for detail.
+    Shows the current week, this week's matchups (once simulated), and
+    navigation to Standings.
     """
 
     def __init__(self, parent: App) -> None:
-        super().__init__(parent, bg=DARK_BG)
+        super().__init__(parent, fg_color=DARK_BG, corner_radius=0)
         self._app = parent
         self._last_matchups: list[Matchup] = []
         self._build_ui()
@@ -29,100 +38,87 @@ class SeasonScreen(tk.Frame):
     # ------------------------------------------------------------------
 
     def _build_ui(self) -> None:
-        # Header
-        header = tk.Frame(self, bg=DARK_BG, pady=12)
-        header.pack(fill=tk.X, padx=20)
+        # Header row
+        header = ctk.CTkFrame(self, fg_color="transparent")
+        header.pack(fill="x", padx=24, pady=(16, 0))
 
         self._title_var = tk.StringVar()
-        ttk.Label(header, textvariable=self._title_var, style="Title.TLabel").pack(
-            side=tk.LEFT
-        )
+        ctk.CTkLabel(
+            header,
+            textvariable=self._title_var,
+            font=("Segoe UI", 22, "bold"),
+            text_color=ACCENT,
+        ).pack(side="left")
 
-        ttk.Button(
-            header, text="Standings", command=self._on_standings
-        ).pack(side=tk.RIGHT, padx=(0, 8))
-        ttk.Button(
-            header, text="Save Game", command=self._on_save
-        ).pack(side=tk.RIGHT, padx=(0, 8))
+        secondary_button(header, "Standings", self._on_standings, width=110).pack(side="right", padx=(6, 0))
+        secondary_button(header, "Save Game", self._on_save, width=110).pack(side="right", padx=(0, 6))
 
-        ttk.Separator(self, orient=tk.HORIZONTAL).pack(fill=tk.X)
+        separator(self).pack(fill="x", pady=(12, 0))
 
-        # Content
-        content = tk.Frame(self, bg=DARK_BG)
-        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=16)
+        # Main content
+        content = ctk.CTkFrame(self, fg_color="transparent")
+        content.pack(fill="both", expand=True, padx=24, pady=16)
 
-        # Matchup summary panel
-        ttk.Label(content, text="This Week's Matchups", style="Subtitle.TLabel").pack(
-            anchor=tk.W
-        )
-        self._matchup_frame = ttk.Frame(content, style="Panel.TFrame")
-        self._matchup_frame.pack(fill=tk.X, pady=(4, 16))
+        # Matchup preview card
+        heading(content, "This Week's Matchups", level=2).pack(anchor="w", pady=(0, 6))
+        self._matchup_card = card_frame(content)
+        self._matchup_card.pack(fill="x", pady=(0, 16))
 
-        # Standings mini-table
-        ttk.Label(content, text="Current Standings", style="Subtitle.TLabel").pack(
-            anchor=tk.W
-        )
+        # Standings mini-table card
+        heading(content, "Current Standings", level=2).pack(anchor="w", pady=(0, 6))
+        standings_card = card_frame(content)
+        standings_card.pack(fill="x")
+
         self._standings_tree = ttk.Treeview(
-            content,
+            standings_card,
             columns=("pos", "team", "w", "l", "pts"),
             show="headings",
             height=6,
             selectmode="none",
         )
-        for col, label, width in [
-            ("pos", "#", 40),
-            ("team", "Team", 160),
-            ("w", "W", 50),
-            ("l", "L", 50),
-            ("pts", "Pts", 80),
+        for col, label, width, anchor in [
+            ("pos",  "#",    40,  "center"),
+            ("team", "Team", 200, "w"),
+            ("w",    "W",    60,  "center"),
+            ("l",    "L",    60,  "center"),
+            ("pts",  "Pts",  90,  "center"),
         ]:
             self._standings_tree.heading(col, text=label)
-            self._standings_tree.column(col, width=width, anchor=tk.CENTER)
-        self._standings_tree.column("team", anchor=tk.W)
-        self._standings_tree.pack(fill=tk.X)
+            self._standings_tree.column(col, width=width, anchor=anchor)
+        self._standings_tree.pack(fill="x", padx=8, pady=8)
 
-        # Footer buttons
-        footer = tk.Frame(self, bg=DARK_BG, pady=12)
-        footer.pack(fill=tk.X, padx=20)
+        # Footer
+        footer = ctk.CTkFrame(self, fg_color="transparent")
+        footer.pack(fill="x", padx=24, pady=(0, 16))
 
-        self._sim_btn = ttk.Button(
-            footer, text="Simulate Next Week", command=self._on_simulate
+        self._sim_btn = accent_button(footer, "Simulate Next Week", self._on_simulate, width=200)
+        self._sim_btn.pack(side="left")
+
+        self._result_btn = secondary_button(
+            footer, "View Week Results", self._on_view_results, width=160
         )
-        self._sim_btn.pack(side=tk.LEFT)
+        self._result_btn.configure(state="disabled")
+        self._result_btn.pack(side="left", padx=(12, 0))
 
-        self._result_btn = ttk.Button(
-            footer,
-            text="View Week Results",
-            command=self._on_view_results,
-            state=tk.DISABLED,
-        )
-        self._result_btn.pack(side=tk.LEFT, padx=(12, 0))
-
-        self._waiver_btn = ttk.Button(
-            footer,
-            text="Waiver Wire",
-            command=self._on_waiver,
-            state=tk.DISABLED,
-        )
-        self._waiver_btn.pack(side=tk.LEFT, padx=(12, 0))
+        self._waiver_btn = secondary_button(footer, "Waiver Wire", self._on_waiver, width=130)
+        self._waiver_btn.configure(state="disabled")
+        self._waiver_btn.pack(side="left", padx=(12, 0))
 
         self._status_var = tk.StringVar()
-        ttk.Label(footer, textvariable=self._status_var, style="Subtitle.TLabel").pack(
-            side=tk.LEFT, padx=16
-        )
+        body_label(footer, textvariable=self._status_var).pack(side="left", padx=16)
 
     # ------------------------------------------------------------------
     # Refresh helpers
     # ------------------------------------------------------------------
 
     def _refresh(self) -> None:
-        sim = self._app.state.simulator
+        sim = self._app.game.simulator
         week = sim.current_week
         remaining = sim.weeks_remaining
 
         if sim.is_complete:
             self._title_var.set("Season Complete!")
-            self._sim_btn.configure(state=tk.DISABLED)
+            self._sim_btn.configure(state="disabled")
             self._status_var.set("The season is over. Check the final standings!")
         else:
             self._title_var.set(f"Season — Week {week + 1} of {sim.total_weeks}")
@@ -133,23 +129,22 @@ class SeasonScreen(tk.Frame):
 
     def _refresh_standings(self) -> None:
         self._standings_tree.delete(*self._standings_tree.get_children())
-        for pos, row in enumerate(self._app.state.league.get_standings(), start=1):
+        for pos, row in enumerate(self._app.game.league.get_standings(), start=1):
             self._standings_tree.insert(
                 "",
-                tk.END,
+                "end",
                 values=(pos, row["team"], row["wins"], row["losses"], row["points"]),
             )
 
     def _refresh_matchup_preview(self) -> None:
-        for widget in self._matchup_frame.winfo_children():
-            widget.destroy()
+        for w in self._matchup_card.winfo_children():
+            w.destroy()
 
         if not self._last_matchups:
-            ttk.Label(
-                self._matchup_frame,
-                text="Simulate a week to see matchup results here.",
-                style="Subtitle.TLabel",
-            ).pack(anchor=tk.W, padx=8, pady=8)
+            body_label(
+                self._matchup_card,
+                "Simulate a week to see matchup results here.",
+            ).pack(anchor="w", padx=12, pady=12)
             return
 
         for m in self._last_matchups:
@@ -158,23 +153,20 @@ class SeasonScreen(tk.Frame):
                 f"  {s['home']}  {s['home_points']:.1f}  vs  "
                 f"{s['away_points']:.1f}  {s['away']}   —  Winner: {s['winner']}"
             )
-            ttk.Label(self._matchup_frame, text=line, style="Subtitle.TLabel").pack(
-                anchor=tk.W, padx=8, pady=2
-            )
+            body_label(self._matchup_card, line).pack(anchor="w", padx=12, pady=3)
 
     # ------------------------------------------------------------------
     # Button handlers
     # ------------------------------------------------------------------
 
     def _on_simulate(self) -> None:
-        sim = self._app.state.simulator
+        sim = self._app.game.simulator
         if sim.is_complete:
             return
         self._last_matchups = sim.simulate_week()
-        self._result_btn.configure(state=tk.NORMAL)
-        # Unlock waiver wire for this week (only if season is still running)
+        self._result_btn.configure(state="normal")
         if not sim.is_complete:
-            self._app.state.waiver_available = True
+            self._app.game.waiver_available = True
         self._refresh()
         self._sync_waiver_btn()
 
@@ -182,9 +174,8 @@ class SeasonScreen(tk.Frame):
         self._app.nav.to_waiver()
 
     def _sync_waiver_btn(self) -> None:
-        """Enable/disable the Waiver Wire button based on state."""
-        available = self._app.state.waiver_available
-        self._waiver_btn.configure(state=tk.NORMAL if available else tk.DISABLED)
+        state = "normal" if self._app.game.waiver_available else "disabled"
+        self._waiver_btn.configure(state=state)
 
     def _on_view_results(self) -> None:
         if not self._last_matchups:
@@ -195,11 +186,11 @@ class SeasonScreen(tk.Frame):
         self._app.nav.to_standings()
 
     def _on_save(self) -> None:
-        sm = self._app.state.save_manager
+        sm = self._app.game.save_manager
         path = sm.save(
-            teams=self._app.state.teams,
-            league=self._app.state.league,
-            simulator=self._app.state.simulator,
+            teams=self._app.game.teams,
+            league=self._app.game.league,
+            simulator=self._app.game.simulator,
             slot="autosave",
         )
         messagebox.showinfo("Saved", f"Game saved to {path.name}")
