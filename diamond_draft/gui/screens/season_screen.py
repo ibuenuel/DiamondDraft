@@ -52,6 +52,7 @@ class SeasonScreen(ctk.CTkFrame):
 
         secondary_button(header, "Standings", self._on_standings, width=110).pack(side="right", padx=(6, 0))
         secondary_button(header, "Save Game", self._on_save, width=110).pack(side="right", padx=(0, 6))
+        secondary_button(header, "Help", self._on_help, width=70).pack(side="right", padx=(0, 6))
 
         separator(self).pack(fill="x", pady=(12, 0))
 
@@ -181,6 +182,10 @@ class SeasonScreen(ctk.CTkFrame):
         if not self._last_matchups:
             return
         self._app.nav.to_matchups(self._last_matchups)
+
+    def _on_help(self) -> None:
+        from diamond_draft.gui.widgets.help_dialog import open_help
+        open_help(self._app)
 
     def _on_standings(self) -> None:
         self._app.nav.to_standings()

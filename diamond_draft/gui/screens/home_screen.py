@@ -77,6 +77,7 @@ class HomeScreen(ctk.CTkFrame):
         self._new_btn.pack(pady=(24, 8))
 
         secondary_button(btn_card, "Load Game", self._on_load_game, width=220).pack(pady=8)
+        secondary_button(btn_card, "Baseball Rules & Abbreviations", self._on_help, width=220).pack(pady=8)
         secondary_button(btn_card, "Quit", self._app.destroy, width=220).pack(pady=(8, 24))
 
     # ------------------------------------------------------------------
@@ -142,6 +143,10 @@ class HomeScreen(ctk.CTkFrame):
             callback()
         else:
             self.after(200, lambda: self._wait_then_start(callback))
+
+    def _on_help(self) -> None:
+        from diamond_draft.gui.widgets.help_dialog import open_help
+        open_help(self._app)
 
     def _on_load_game(self) -> None:
         sm = self._app.game.save_manager
