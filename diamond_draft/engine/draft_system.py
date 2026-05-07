@@ -48,14 +48,19 @@ class DraftSystem:
     def available_for_position(self, position: str) -> list[Player]:
         return [p for p in self.available_players() if p.position == position]
 
-    def make_pick(self, player: Player) -> None:
-        """Draft a player to the current team and advance the pick clock."""
+    def make_pick(self, player: Player, *, force: bool = False) -> None:
+        """Draft a player to the current team and advance the pick clock.
+
+        Args:
+            force: Bypass position validation. Used by the CPU fallback when a
+                   required position is exhausted in the pool.
+        """
         if self.is_complete:
             raise RuntimeError("Draft is already complete.")
         if player not in self._available:
             raise ValueError(f"{player.name} is no longer available.")
         team = self.current_team
-        if not team.needs_position(player.position):
+        if not force and not team.needs_position(player.position):
             raise ValueError(
                 f"{team.name} has no open slot for position {player.position}."
             )
@@ -64,15 +69,20 @@ class DraftSystem:
         self._current_pick += 1
 
     def cpu_pick(self) -> Player:
-        """Pick the best available player that fills an open slot for the current team."""
+        """Pick the best available player that fills an open slot for the current team.
+
+        Falls back to the best overall available player when a required position
+        (e.g. Catcher) is exhausted before every team has filled it.
+        """
         team = self.current_team
         for player in self.available_players():
             if team.needs_position(player.position):
                 return player
-        raise RuntimeError(
-            f"No eligible player found for {team.name}. "
-            f"Open slots: {team.open_slots()}"
-        )
+        # Position pool exhausted — take best available regardless of slot
+        available = self.available_players()
+        if not available:
+            raise RuntimeError(f"Draft pool is completely exhausted for {team.name}.")
+        return available[0]
 
     def advance_cpu_turns(self) -> list[Player]:
         """
@@ -82,7 +92,11 @@ class DraftSystem:
         picked: list[Player] = []
         while not self.is_complete and not self.current_team.is_human:
             player = self.cpu_pick()
-            self.make_pick(player)
+            team = self.current_team
+            # If cpu_pick() fell back to a player whose position doesn't fit any
+            # open slot, bypass the position check so the draft can continue.
+            force = not team.needs_position(player.position)
+            self.make_pick(player, force=force)
             picked.append(player)
         return picked
 

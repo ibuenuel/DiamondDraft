@@ -34,6 +34,7 @@ class GameState:
     current_year: int = 2024
     loaded_year: int | None = None
     team_name: str = "Your Team"
+    waiver_available: bool = False
 
 
 class App(tk.Tk):

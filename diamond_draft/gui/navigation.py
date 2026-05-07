@@ -39,3 +39,7 @@ class ScreenNavigator:
     def to_matchups(self, matchups: list[Matchup]) -> None:
         from diamond_draft.gui.screens.matchup_screen import MatchupScreen
         self._app.show_screen(MatchupScreen, matchups=matchups)
+
+    def to_waiver(self) -> None:
+        from diamond_draft.gui.screens.waiver_screen import WaiverScreen
+        self._app.show_screen(WaiverScreen)

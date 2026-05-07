@@ -22,6 +22,7 @@ class SeasonScreen(tk.Frame):
         self._last_matchups: list[Matchup] = []
         self._build_ui()
         self._refresh()
+        self._sync_waiver_btn()
 
     # ------------------------------------------------------------------
     # UI construction
@@ -97,6 +98,14 @@ class SeasonScreen(tk.Frame):
         )
         self._result_btn.pack(side=tk.LEFT, padx=(12, 0))
 
+        self._waiver_btn = ttk.Button(
+            footer,
+            text="Waiver Wire",
+            command=self._on_waiver,
+            state=tk.DISABLED,
+        )
+        self._waiver_btn.pack(side=tk.LEFT, padx=(12, 0))
+
         self._status_var = tk.StringVar()
         ttk.Label(footer, textvariable=self._status_var, style="Subtitle.TLabel").pack(
             side=tk.LEFT, padx=16
@@ -163,7 +172,19 @@ class SeasonScreen(tk.Frame):
             return
         self._last_matchups = sim.simulate_week()
         self._result_btn.configure(state=tk.NORMAL)
+        # Unlock waiver wire for this week (only if season is still running)
+        if not sim.is_complete:
+            self._app.state.waiver_available = True
         self._refresh()
+        self._sync_waiver_btn()
+
+    def _on_waiver(self) -> None:
+        self._app.nav.to_waiver()
+
+    def _sync_waiver_btn(self) -> None:
+        """Enable/disable the Waiver Wire button based on state."""
+        available = self._app.state.waiver_available
+        self._waiver_btn.configure(state=tk.NORMAL if available else tk.DISABLED)
 
     def _on_view_results(self) -> None:
         if not self._last_matchups:

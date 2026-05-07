@@ -82,10 +82,13 @@ class DataLoader:
         return players
 
     def _fetch_group(self, group: str) -> list[Player]:
+        # playerPool=qualified excludes most catchers (fewer PA than the threshold).
+        # We use playerPool=all and sort/limit client-side to ensure every required
+        # position has enough players for a 6-team draft.
         url = (
             f"{MLBApiConfig.BASE_URL}/stats"
             f"?stats=season&group={group}&season={self.year}"
-            f"&playerPool=qualified&limit={MLBApiConfig.QUALIFIED_PLAYER_LIMIT}"
+            f"&playerPool=all&limit={MLBApiConfig.QUALIFIED_PLAYER_LIMIT}"
         )
         resp = requests.get(url, timeout=MLBApiConfig.REQUEST_TIMEOUT)
         resp.raise_for_status()
