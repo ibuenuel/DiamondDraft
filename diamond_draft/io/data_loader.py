@@ -2,36 +2,19 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from pathlib import Path
+
+import requests
 
 from diamond_draft.models.player import Batter, Pitcher, Player
 
 logger = logging.getLogger(__name__)
 
-# Anchor all data paths to the project root (two levels up from this file).
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _DATA_DIR = _PROJECT_ROOT / "data"
 
-# Pybaseball column name -> our stats key
-_BATTING_COL_MAP: dict[str, str] = {
-    "HR": "HR",
-    "RBI": "RBI",
-    "R": "R",
-    "SB": "SB",
-    "H": "H",
-    "SO": "SO",
-}
-_PITCHING_COL_MAP: dict[str, str] = {
-    "W": "W",
-    "SO": "SO",
-    "IP": "IP",
-    "SV": "SV",
-    "ERA": "ERA",
-    "L": "L",
-}
-# Fielding position normalisations
-_OUTFIELD_POSITIONS = {"LF", "CF", "RF"}
+_BASE_URL = "https://statsapi.mlb.com/api/v1"
+
 _POSITION_NORM: dict[str, str] = {
     "LF": "OF",
     "CF": "OF",
@@ -46,7 +29,7 @@ class DataLoader:
 
     Resolution order:
       1. Local JSON cache  (data/players_YYYY.json)
-      2. pybaseball live fetch (requires internet)
+      2. MLB Stats API live fetch (requires internet)
       3. Bundled sample data  (data/sample_players.json)
     """
 
@@ -62,19 +45,17 @@ class DataLoader:
     # ------------------------------------------------------------------
 
     def load(self) -> tuple[list[Player], str]:
-        """
-        Returns (players, source) where source is 'cache', 'live', or 'sample'.
-        """
+        """Returns (players, source) where source is 'cache', 'live', or 'sample'."""
         if self._use_cache and self.CACHE_PATH.exists():
             logger.info("Loading players from cache: %s", self.CACHE_PATH)
             return self._load_json(self.CACHE_PATH), "cache"
 
         try:
-            players = self._fetch_from_pybaseball()
+            players = self._fetch_from_mlb_api()
             self._save_cache(players)
             return players, "live"
         except Exception as exc:
-            logger.warning("pybaseball fetch failed: %s", exc, exc_info=True)
+            logger.warning("MLB Stats API fetch failed: %s", exc, exc_info=True)
 
         logger.warning("Falling back to bundled sample data for %d.", self.year)
         return self._load_sample(), "sample"
@@ -83,108 +64,72 @@ class DataLoader:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _fetch_from_pybaseball(self) -> list[Player]:
-        import pybaseball  # deferred — not imported at module level
-
-        pybaseball.cache.enable()
-
-        batting_df, pitching_df = self._fetch_stats(pybaseball)
-
-        try:
-            fielding_df = pybaseball.fielding_stats(self.year, qual=10)
-            position_map = self._build_position_map(fielding_df)
-        except Exception:
-            logger.warning("fielding_stats fetch failed; using default positions.")
-            position_map = {}
-
-        batters = [
-            self._build_batter(row, position_map)
-            for _, row in batting_df.iterrows()
-        ]
-        pitchers = [
-            self._build_pitcher(row)
-            for _, row in pitching_df.iterrows()
-        ]
-
-        # Deduplicate: a two-way player (e.g. Ohtani) may appear in both lists.
+    def _fetch_from_mlb_api(self) -> list[Player]:
+        batters = self._fetch_group("hitting")
+        pitchers = self._fetch_group("pitching")
         pitcher_names = {p.name for p in pitchers}
         batters = [b for b in batters if b.name not in pitcher_names]
+        players = batters + pitchers
+        self._validate_positions(players)
+        return players
 
-        return batters + pitchers
+    def _fetch_group(self, group: str) -> list[Player]:
+        url = (
+            f"{_BASE_URL}/stats"
+            f"?stats=season&group={group}&season={self.year}"
+            f"&playerPool=qualified&limit=500"
+        )
+        resp = requests.get(url, timeout=15)
+        resp.raise_for_status()
+        splits = resp.json()["stats"][0]["splits"]
+        if group == "hitting":
+            return [self._build_batter(s) for s in splits]
+        return [self._build_pitcher(s) for s in splits]
 
-    def _fetch_stats(self, pybaseball):
-        """Try Fangraphs first; fall back to Baseball Reference on 403."""
-        import requests
-
-        try:
-            batting_df = pybaseball.batting_stats(self.year, qual=50)
-            pitching_df = pybaseball.pitching_stats(self.year, qual=20)
-            return batting_df, pitching_df
-        except requests.exceptions.HTTPError as exc:
-            if "403" not in str(exc):
-                raise
-            logger.warning("Fangraphs 403 — switching to Baseball Reference.")
-
-        batting_df = pybaseball.batting_stats_bref(self.year)
-        batting_df = batting_df[batting_df["PA"] >= 100]
-        pitching_df = pybaseball.pitching_stats_bref(self.year)
-        pitching_df = pitching_df[pitching_df["IP"] >= 20]
-        return batting_df, pitching_df
-
-    def _build_position_map(self, fielding_df) -> dict[str, str]:
-        """Map player name -> normalised position from fielding data."""
-        pos_map: dict[str, str] = {}
-        pos_col = "Pos" if "Pos" in fielding_df.columns else "position"
-        for _, row in fielding_df.iterrows():
-            name = str(row.get("Name", "")).strip()
-            raw_pos = str(row.get(pos_col, "")).strip().upper()
-            normalised = _POSITION_NORM.get(raw_pos, raw_pos)
-            if name and normalised:
-                pos_map.setdefault(name, normalised)
-        return pos_map
-
-    @staticmethod
-    def _fix_name(raw) -> str:
-        """Repair names that contain literal \\xNN escape sequences instead of Unicode.
-
-        pybaseball/bref sometimes returns 'Jos\\xc3\\xa9 Abreu' (backslash+x+hex as
-        actual characters) instead of 'José Abreu'. Convert those sequences to bytes
-        and decode as UTF-8 to recover the original character.
-        """
-        s = str(raw).strip()
-        if "\\" not in s:
-            return s
-        try:
-            fixed = re.sub(
-                r"\\x([0-9a-fA-F]{2})",
-                lambda m: chr(int(m.group(1), 16)),
-                s,
-            )
-            return fixed.encode("latin-1").decode("utf-8")
-        except (UnicodeDecodeError, UnicodeEncodeError):
-            return s
-
-    def _build_batter(self, row, position_map: dict[str, str]) -> Batter:
-        name = self._fix_name(row.get("Name", "Unknown"))
-        team = str(row.get("Team") or row.get("Tm") or "???").strip()
-        position = position_map.get(name, "OF")  # default to OF if unknown
-        if position not in Batter.POSITIONS:
-            position = "OF"
-
+    def _build_batter(self, split: dict) -> Batter:
+        name = split["player"]["fullName"]
+        team = split["team"]["name"]
+        pos = _POSITION_NORM.get(
+            split["position"]["abbreviation"],
+            split["position"]["abbreviation"],
+        )
+        if pos not in Batter.POSITIONS:
+            pos = "OF"
+        s = split["stat"]
         stats = {
-            key: float(row.get(col, 0) or 0)
-            for col, key in _BATTING_COL_MAP.items()
+            "HR":  float(s.get("homeRuns", 0)),
+            "RBI": float(s.get("rbi", 0)),
+            "R":   float(s.get("runs", 0)),
+            "SB":  float(s.get("stolenBases", 0)),
+            "H":   float(s.get("hits", 0)),
+            "SO":  float(s.get("strikeOuts", 0)),
         }
-        return Batter(name=name, mlb_team=team, position=position, stats=stats)
+        return Batter(name=name, mlb_team=team, position=pos, stats=stats)
 
-    def _build_pitcher(self, row) -> Pitcher:
-        name = self._fix_name(row.get("Name", "Unknown"))
-        team = str(row.get("Team") or row.get("Tm") or "???").strip()
+    def _build_pitcher(self, split: dict) -> Pitcher:
+        name = split["player"]["fullName"]
+        team = split["team"]["name"]
+        s = split["stat"]
         stats = {
-            key: float(row.get(col, 0) or 0)
-            for col, key in _PITCHING_COL_MAP.items()
+            "W":   float(s.get("wins", 0)),
+            "SO":  float(s.get("strikeOuts", 0)),
+            "IP":  float(s.get("inningsPitched", 0)),
+            "SV":  float(s.get("saves", 0)),
+            "ERA": float(s.get("era", 0)),
+            "L":   float(s.get("losses", 0)),
         }
         return Pitcher(name=name, mlb_team=team, position="SP", stats=stats)
+
+    def _validate_positions(self, players: list[Player]) -> None:
+        from diamond_draft.models.team import Team
+        positions = {p.position for p in players}
+        required = set(Team.SLOT_REQUIREMENTS) - {"SP", "OF"}
+        missing = required - positions
+        if missing:
+            raise RuntimeError(
+                f"Player pool missing positions {missing}. "
+                "Falling back to sample data."
+            )
 
     # ------------------------------------------------------------------
     # Cache / sample I/O
