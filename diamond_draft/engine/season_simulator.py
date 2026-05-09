@@ -60,6 +60,7 @@ class SeasonSimulator:
 
         self.current_week += 1
         self._apply_weekly_factors()
+        self._set_cpu_lineups()
 
         week_matchups = self._league.schedule[self.current_week - 1]
 
@@ -67,6 +68,18 @@ class SeasonSimulator:
             self._league.update_standings(matchup)
 
         return week_matchups
+
+    def _set_cpu_lineups(self) -> None:
+        """Auto-select the best active lineup for every CPU team."""
+        from diamond_draft.models.team import Team
+
+        for team in self._league.teams:
+            if not team.is_human:
+                team.active_lineup = sorted(
+                    team.roster,
+                    key=self._score_engine.score,
+                    reverse=True,
+                )[: Team.ACTIVE_SIZE]
 
     def _apply_weekly_factors(self) -> None:
         """Randomise each player's weekly_factor and apply injury logic."""
