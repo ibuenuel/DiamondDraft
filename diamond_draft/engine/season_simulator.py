@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import random
+
 from diamond_draft.engine.score_engine import ScoreEngine
 from diamond_draft.models.league import League
 from diamond_draft.models.matchup import Matchup
@@ -18,6 +20,10 @@ class SeasonSimulator:
     ScoreEngine is injected so it can be swapped in tests.
     """
 
+    INJURY_CHANCE: float = 0.08
+    INJURY_MIN_WEEKS: int = 1
+    INJURY_MAX_WEEKS: int = 2
+
     def __init__(
         self,
         league: League,
@@ -26,6 +32,7 @@ class SeasonSimulator:
         self._league = league
         self._score_engine = score_engine
         self.current_week: int = 0  # 0 = draft not yet played; 1-10 = week index
+        self.injury_report: list[str] = []
 
     # ------------------------------------------------------------------
     # Public API
@@ -52,12 +59,36 @@ class SeasonSimulator:
             raise RuntimeError("Season is already complete — all 10 weeks have been played.")
 
         self.current_week += 1
+        self._apply_weekly_factors()
+
         week_matchups = self._league.schedule[self.current_week - 1]
 
         for matchup in week_matchups:
             self._league.update_standings(matchup)
 
         return week_matchups
+
+    def _apply_weekly_factors(self) -> None:
+        """Randomise each player's weekly_factor and apply injury logic."""
+        self.injury_report = []
+        for team in self._league.teams:
+            for player in team.roster:
+                if player.injured_weeks_remaining > 0:
+                    player.injured_weeks_remaining -= 1
+                    player.weekly_factor = 0.0
+                elif random.random() < self.INJURY_CHANCE:
+                    player.injured_weeks_remaining = random.randint(
+                        self.INJURY_MIN_WEEKS, self.INJURY_MAX_WEEKS
+                    )
+                    player.weekly_factor = 0.0
+                    self.injury_report.append(
+                        f"{player.name} ({team.name}) — out {player.injured_weeks_remaining} week(s)"
+                    )
+                else:
+                    player.weekly_factor = random.uniform(
+                        self._score_engine.VARIANCE_MIN,
+                        self._score_engine.VARIANCE_MAX,
+                    )
 
     def simulate_all(self) -> list[list[Matchup]]:
         """Simulate all remaining weeks and return results grouped by week."""

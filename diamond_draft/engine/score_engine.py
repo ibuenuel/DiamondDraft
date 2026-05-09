@@ -36,15 +36,18 @@ class ScoreEngine:
     ERA_BONUS_THRESHOLD: float = 3.00
     ERA_BONUS: float = 2.0
 
+    VARIANCE_MIN: float = 0.7
+    VARIANCE_MAX: float = 1.3
+
     @staticmethod
     def score(player: Player) -> float:
-        """Return fantasy points for a player based on their season stats."""
+        """Return fantasy points for a player, scaled by their weekly_factor."""
         from diamond_draft.models.player import Batter, Pitcher
 
         if isinstance(player, Batter):
-            return ScoreEngine._score_batter(player)
+            return ScoreEngine._score_batter(player) * player.weekly_factor
         if isinstance(player, Pitcher):
-            return ScoreEngine._score_pitcher(player)
+            return ScoreEngine._score_pitcher(player) * player.weekly_factor
         raise TypeError(f"Unknown player type: {type(player)}")
 
     @staticmethod

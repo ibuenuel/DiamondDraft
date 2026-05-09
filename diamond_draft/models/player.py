@@ -14,6 +14,8 @@ class Player(ABC):
     position: str
     stats: dict[str, float] = field(default_factory=dict)
     mlb_id: int | None = None
+    weekly_factor: float = field(default=1.0)
+    injured_weeks_remaining: int = field(default=0)
 
     @property
     def player_id(self) -> str:
@@ -30,18 +32,23 @@ class Player(ABC):
             "position": self.position,
             "stats": self.stats,
             "mlb_id": self.mlb_id,
+            "weekly_factor": self.weekly_factor,
+            "injured_weeks_remaining": self.injured_weeks_remaining,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> Player:
         player_cls = Batter if data["type"] == "Batter" else Pitcher
-        return player_cls(
+        player = player_cls(
             name=data["name"],
             mlb_team=data["mlb_team"],
             position=data["position"],
             stats=data["stats"],
             mlb_id=data.get("mlb_id"),
         )
+        player.weekly_factor = data.get("weekly_factor", 1.0)
+        player.injured_weeks_remaining = data.get("injured_weeks_remaining", 0)
+        return player
 
     def __str__(self) -> str:
         return f"{self.name} ({self.position}, {self.mlb_team})"
