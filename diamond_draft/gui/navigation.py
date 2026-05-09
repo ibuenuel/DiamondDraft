@@ -43,3 +43,7 @@ class ScreenNavigator:
     def to_waiver(self) -> None:
         from diamond_draft.gui.screens.waiver_screen import WaiverScreen
         self._app.show_screen(WaiverScreen)
+
+    def to_lineup(self) -> None:
+        from diamond_draft.gui.screens.lineup_screen import LineupScreen
+        self._app.show_screen(LineupScreen)

@@ -105,6 +105,9 @@ class SeasonScreen(ctk.CTkFrame):
         self._waiver_btn.configure(state="disabled")
         self._waiver_btn.pack(side="left", padx=(12, 0))
 
+        self._lineup_btn = secondary_button(footer, "Set Lineup", self._on_lineup, width=120)
+        self._lineup_btn.pack(side="left", padx=(12, 0))
+
         self._status_var = tk.StringVar()
         body_label(footer, textvariable=self._status_var).pack(side="left", padx=16)
 
@@ -176,6 +179,9 @@ class SeasonScreen(ctk.CTkFrame):
 
     def _on_waiver(self) -> None:
         self._app.nav.to_waiver()
+
+    def _on_lineup(self) -> None:
+        self._app.nav.to_lineup()
 
     def _sync_waiver_btn(self) -> None:
         state = "normal" if self._app.game.waiver_available else "disabled"
