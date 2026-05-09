@@ -170,6 +170,9 @@ class SeasonScreen(ctk.CTkFrame):
             self._app.game.waiver_available = True
         self._refresh()
         self._sync_waiver_btn()
+        if sim.injury_report:
+            report = "\n".join(sim.injury_report)
+            messagebox.showinfo("Injury Report", f"Players injured this week:\n\n{report}")
 
     def _on_waiver(self) -> None:
         self._app.nav.to_waiver()

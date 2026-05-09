@@ -143,9 +143,10 @@ class WaiverScreen(ctk.CTkFrame):
             reverse=True,
         ):
             pts = f"{player.calculate_fantasy_points():.1f}"
+            inj_suffix = " [INJ]" if player.injured_weeks_remaining > 0 else ""
             self._roster_tree.insert(
                 "", "end", iid=player.name,
-                values=(player.position, player.name, pts),
+                values=(player.position, player.name + inj_suffix, pts),
             )
 
     def _filter_waiver_by_position(self, position: str) -> None:
