@@ -19,6 +19,7 @@ import json
 import logging
 from pathlib import Path
 
+from diamond_draft.engine.playoff_simulator import PlayoffSimulator
 from diamond_draft.engine.season_simulator import SeasonSimulator
 from diamond_draft.models.league import League
 from diamond_draft.models.team import Team
@@ -59,6 +60,7 @@ class SaveManager:
         teams: list[Team],
         league: League,
         simulator: SeasonSimulator,
+        playoff_simulator: PlayoffSimulator | None = None,
         slot: str = "autosave",
     ) -> Path:
         """Serialise the current game state and write it to *slot*.
@@ -81,6 +83,7 @@ class SaveManager:
                 for week in league.schedule
             ],
             "current_week": simulator.current_week,
+            "playoff":      playoff_simulator.to_dict() if playoff_simulator else None,
         }
         path = self._slot_path(slot)
         with open(path, "w", encoding="utf-8") as fh:
@@ -88,7 +91,9 @@ class SaveManager:
         logger.info("Game saved to %s", path)
         return path
 
-    def load(self, slot: str = "autosave") -> tuple[list[Team], League, int]:
+    def load(
+        self, slot: str = "autosave"
+    ) -> tuple[list[Team], League, int, PlayoffSimulator | None]:
         """Load a previously saved game state from *slot*.
 
         The caller is responsible for passing ``current_week`` to
@@ -98,7 +103,9 @@ class SaveManager:
             slot: Save slot name to load. Defaults to ``"autosave"``.
 
         Returns:
-            A 3-tuple of ``(teams, league, current_week)``.
+            A 4-tuple of ``(teams, league, current_week, playoff_simulator)``.
+            ``playoff_simulator`` is ``None`` when the save pre-dates playoff
+            support or when no playoffs have started yet.
 
         Raises:
             FileNotFoundError: If no save file exists for *slot*.
@@ -116,8 +123,14 @@ class SaveManager:
         league       = League.from_dict(state, teams)
         current_week = int(state["current_week"])
 
+        playoff_data = state.get("playoff")
+        playoff_sim: PlayoffSimulator | None = None
+        if playoff_data:
+            team_map   = {t.name: t for t in teams}
+            playoff_sim = PlayoffSimulator.from_dict(playoff_data, team_map)
+
         logger.info("Game loaded from %s (week %d)", path, current_week)
-        return teams, league, current_week
+        return teams, league, current_week, playoff_sim
 
     def list_saves(self) -> list[str]:
         """Return the names of all available save slots.

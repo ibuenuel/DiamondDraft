@@ -164,7 +164,7 @@ class HomeScreen(ctk.CTkFrame):
             return
 
         try:
-            teams, league, week = sm.load(slot=slot)
+            teams, league, week, playoff_sim = sm.load(slot=slot)
         except Exception as exc:
             dialog.show_error(self, "Load Error", str(exc))
             return
@@ -175,7 +175,11 @@ class HomeScreen(ctk.CTkFrame):
         self._app.game.league = league
         self._app.game.simulator = SeasonSimulator(league=league)
         self._app.game.simulator.restore_week(week)
-        self._app.nav.to_season()
+        self._app.game.playoff_simulator = playoff_sim
+        if playoff_sim is not None:
+            self._app.nav.to_playoff_bracket()
+        else:
+            self._app.nav.to_season()
 
 
 def _pick_year(parent: ctk.CTk, current_year: int) -> int | None:

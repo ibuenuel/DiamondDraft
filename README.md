@@ -20,7 +20,8 @@ CPU-managed teams. Scoring is based on real MLB statistics fetched via the
 - **Weekly Performance Variance** — healthy players receive a random performance multiplier each week (0.7×–1.3×)
 - **Waiver Wire** — drop and pick up players from the free-agent pool between weeks
 - **Player Detail View** — double-click any player to see full stats, headshot, team logo, and a points bar chart
-- **Save / Load** — full game state persisted as JSON
+- **Playoffs** — top 4 teams advance to a two-round knockout bracket (Semifinal + Final) after the regular season; animated bracket screen with score reveal and champion celebration
+- **Save / Load** — full game state persisted as JSON, including mid-playoff progress
 - **Desktop GUI** — built with `customtkinter` for a modern dark-themed interface with custom themed dialogs
 
 ---
@@ -93,7 +94,8 @@ DiamondDraft/
     ├── engine/
     │   ├── score_engine.py          # Stateless fantasy point calculator
     │   ├── draft_system.py          # Snake draft logic + CPU picks
-    │   └── season_simulator.py      # Week-by-week season orchestration
+    │   ├── season_simulator.py      # Week-by-week season orchestration
+    │   └── playoff_simulator.py     # Two-round knockout playoff engine
     ├── io/
     │   ├── data_loader.py           # MLB Stats API fetch + local JSON cache
     │   └── save_manager.py          # Full game state JSON persistence
@@ -101,13 +103,14 @@ DiamondDraft/
         ├── app.py                   # Root Tk window + GameState + screen router
         ├── navigation.py            # ScreenNavigator — centralised screen transitions
         ├── screens/
-        │   ├── home_screen.py       # Start / Load / Quit
-        │   ├── draft_screen.py      # Interactive snake draft
-        │   ├── lineup_screen.py     # Weekly active lineup management
-        │   ├── season_screen.py     # Weekly simulation controls
-        │   ├── standings_screen.py  # League standings table
-        │   ├── matchup_screen.py    # Per-week matchup detail
-        │   └── waiver_screen.py     # Post-week free-agent transactions
+        │   ├── home_screen.py           # Start / Load / Quit
+        │   ├── draft_screen.py          # Interactive snake draft
+        │   ├── lineup_screen.py         # Weekly active lineup management
+        │   ├── season_screen.py         # Weekly simulation controls
+        │   ├── standings_screen.py      # League standings table
+        │   ├── matchup_screen.py        # Per-week matchup detail
+        │   ├── waiver_screen.py         # Post-week free-agent transactions
+        │   └── playoff_bracket_screen.py# Animated playoff bracket UI
         └── widgets/
             ├── player_table.py      # Reusable sortable Treeview widget
             ├── player_detail_dialog.py  # Player popup: stats, headshot, bar chart
@@ -180,7 +183,7 @@ python -m diamond_draft
 - [x] Active lineup management — set a weekly 11-player lineup from a 14-player roster
 - [x] Injury system — players can miss 1–2 weeks with weekly_factor = 0
 - [x] Weekly performance variance — random multiplier per player per week
-- [ ] Playoffs after regular season (top 4 teams)
+- [x] Playoffs after regular season (top 4 teams) — animated bracket, score reveal, champion dialog
 - [ ] Achievements / milestones
 - [ ] Export season stats as CSV
 

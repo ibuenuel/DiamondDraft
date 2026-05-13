@@ -102,6 +102,10 @@ class SeasonScreen(ctk.CTkFrame):
         self._sim_btn = accent_button(footer, "Simulate Next Week", self._on_simulate, width=200)
         self._sim_btn.pack(side="left")
 
+        self._playoffs_btn = accent_button(footer, "Begin Playoffs", self._on_begin_playoffs, width=190)
+        self._playoffs_btn.pack(side="left", padx=(12, 0))
+        self._playoffs_btn.pack_forget()  # hidden until season is complete
+
         self._result_btn = secondary_button(
             footer, "View Week Results", self._on_view_results, width=160
         )
@@ -129,8 +133,9 @@ class SeasonScreen(ctk.CTkFrame):
 
         if sim.is_complete:
             self._title_var.set("Season Complete!")
-            self._sim_btn.configure(state="disabled")
-            self._status_var.set("The season is over. Check the final standings!")
+            self._sim_btn.pack_forget()
+            self._playoffs_btn.pack(side="left")
+            self._status_var.set("Top 4 teams advance to the Playoffs!")
         else:
             self._title_var.set(f"Season — Week {week + 1} of {sim.total_weeks}")
             self._status_var.set(f"{remaining} week(s) remaining")
@@ -205,6 +210,15 @@ class SeasonScreen(ctk.CTkFrame):
 
     def _on_standings(self) -> None:
         self._app.nav.to_standings()
+
+    def _on_begin_playoffs(self) -> None:
+        from diamond_draft.engine.playoff_simulator import PlayoffSimulator
+
+        standings = self._app.game.league.get_standings()
+        team_map = {t.name: t for t in self._app.game.teams}
+        seeds = [team_map[row["team"]] for row in standings[:4]]
+        self._app.game.playoff_simulator = PlayoffSimulator(seeds)
+        self._app.nav.to_playoff_bracket()
 
     def _on_save(self) -> None:
         sm = self._app.game.save_manager

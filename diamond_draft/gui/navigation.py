@@ -71,3 +71,8 @@ class ScreenNavigator:
         """Navigate to the ``LineupScreen`` (active / bench swap)."""
         from diamond_draft.gui.screens.lineup_screen import LineupScreen
         self._app.show_screen(LineupScreen)
+
+    def to_playoff_bracket(self) -> None:
+        """Navigate to the ``PlayoffBracketScreen`` (playoff bracket UI)."""
+        from diamond_draft.gui.screens.playoff_bracket_screen import PlayoffBracketScreen
+        self._app.show_screen(PlayoffBracketScreen)

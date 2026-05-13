@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 import customtkinter as ctk
 
 if TYPE_CHECKING:
+    from diamond_draft.engine.playoff_simulator import PlayoffSimulator
     from diamond_draft.engine.season_simulator import SeasonSimulator
     from diamond_draft.io.save_manager import SaveManager
     from diamond_draft.models.league import League
@@ -83,15 +84,16 @@ class GameState:
             before the next), indicating the waiver wire is open.
     """
 
-    players:          list[Player]           = field(default_factory=list)
-    teams:            list[Team]             = field(default_factory=list)
-    league:           League | None          = None
-    simulator:        SeasonSimulator | None = None
-    save_manager:     SaveManager | None     = None
-    current_year:     int                    = 2024
-    loaded_year:      int | None             = None
-    team_name:        str                    = "Your Team"
-    waiver_available: bool                   = False
+    players:           list[Player]            = field(default_factory=list)
+    teams:             list[Team]              = field(default_factory=list)
+    league:            League | None           = None
+    simulator:         SeasonSimulator | None  = None
+    playoff_simulator: PlayoffSimulator | None = None
+    save_manager:      SaveManager | None      = None
+    current_year:      int                     = 2024
+    loaded_year:       int | None              = None
+    team_name:         str                     = "Your Team"
+    waiver_available:  bool                    = False
 
 
 # ---------------------------------------------------------------------------

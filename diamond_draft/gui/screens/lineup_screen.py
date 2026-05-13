@@ -253,4 +253,7 @@ class LineupScreen(ctk.CTkFrame):
         self._app.nav.to_season()
 
     def _on_back(self) -> None:
-        self._app.nav.to_season()
+        if self._app.game.playoff_simulator is not None:
+            self._app.nav.to_playoff_bracket()
+        else:
+            self._app.nav.to_season()
