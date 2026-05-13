@@ -15,10 +15,13 @@ CPU-managed teams. Scoring is based on real MLB statistics fetched via the
 - **Real MLB Data** — season statistics via the MLB Stats API; choose any year at game start (cached locally per year after first load)
 - **Standard Fantasy Scoring** — batting and pitching points per the rules below
 - **10-Week Season** — weekly head-to-head matchups with live standings
+- **Active Lineup Management** — set a weekly 11-player active lineup from a 14-player roster; bench players contribute no points
+- **Injury System** — players have a chance to get injured each week and miss 1–2 weeks
+- **Weekly Performance Variance** — healthy players receive a random performance multiplier each week (0.7×–1.3×)
 - **Waiver Wire** — drop and pick up players from the free-agent pool between weeks
 - **Player Detail View** — double-click any player to see full stats, headshot, team logo, and a points bar chart
 - **Save / Load** — full game state persisted as JSON
-- **Desktop GUI** — built with `customtkinter` for a modern dark-themed interface
+- **Desktop GUI** — built with `customtkinter` for a modern dark-themed interface with custom themed dialogs
 
 ---
 
@@ -50,17 +53,22 @@ CPU-managed teams. Scoring is based on real MLB statistics fetched via the
 
 ## Roster Slots (per team)
 
-| Position              | Slots  |
-|-----------------------|--------|
-| Starting Pitcher (SP) | 2      |
-| Catcher (C)           | 1      |
-| First Baseman (1B)    | 1      |
-| Second Baseman (2B)   | 1      |
-| Third Baseman (3B)    | 1      |
-| Shortstop (SS)        | 1      |
-| Outfielder (OF)       | 3      |
-| Designated Hitter (DH)| 1      |
-| **Total**             | **11** |
+Each team holds **14 players**: 11 active (scoring) and 3 bench (non-scoring).
+The active lineup is set by the user each week via the Lineup screen.
+
+| Position              | Active Slots |
+|-----------------------|-------------|
+| Starting Pitcher (SP) | 2           |
+| Catcher (C)           | 1           |
+| First Baseman (1B)    | 1           |
+| Second Baseman (2B)   | 1           |
+| Third Baseman (3B)    | 1           |
+| Shortstop (SS)        | 1           |
+| Outfielder (OF)       | 3           |
+| Designated Hitter (DH)| 1           |
+| **Active Total**      | **11**      |
+| Bench                 | 3           |
+| **Full Roster**       | **14**      |
 
 ---
 
@@ -68,16 +76,18 @@ CPU-managed teams. Scoring is based on real MLB statistics fetched via the
 
 ```
 DiamondDraft/
-├── main.py                          # Entry point
 ├── requirements.txt
 │
 ├── data/                            # Auto-populated on first run (gitignored)
 ├── saves/                           # JSON save slots (gitignored)
 │
 └── diamond_draft/
+    ├── __main__.py                  # Entry point (python -m diamond_draft)
+    ├── config.py                    # All tuneable constants, API URLs, position maps
     ├── models/
     │   ├── player.py                # Player (ABC), Batter, Pitcher
-    │   ├── team.py                  # Team with roster management
+    │   ├── player_registry.py       # Registry pattern for Player deserialisation
+    │   ├── team.py                  # Team with roster + active lineup management
     │   ├── matchup.py               # Weekly head-to-head matchup
     │   └── league.py                # League: teams, schedule, standings
     ├── engine/
@@ -93,6 +103,7 @@ DiamondDraft/
         ├── screens/
         │   ├── home_screen.py       # Start / Load / Quit
         │   ├── draft_screen.py      # Interactive snake draft
+        │   ├── lineup_screen.py     # Weekly active lineup management
         │   ├── season_screen.py     # Weekly simulation controls
         │   ├── standings_screen.py  # League standings table
         │   ├── matchup_screen.py    # Per-week matchup detail
@@ -100,6 +111,7 @@ DiamondDraft/
         └── widgets/
             ├── player_table.py      # Reusable sortable Treeview widget
             ├── player_detail_dialog.py  # Player popup: stats, headshot, bar chart
+            ├── dialog.py            # Themed modal dialogs (replaces tkinter.messagebox)
             ├── help_dialog.py       # In-app baseball rules & scoring reference
             └── ui_helpers.py        # Shared CTk component factory functions
 ```
@@ -118,7 +130,8 @@ GUI  →  engine  →  models
 
 - **Inheritance** — `Player` is an abstract base class; `Batter` and `Pitcher` inherit from it and implement `calculate_fantasy_points()`
 - **Polymorphism** — all GUI screens call `player.calculate_fantasy_points()` rather than reaching into `ScoreEngine` directly; the correct implementation is dispatched automatically
-- **DRY** — `ScoreEngine` is the single source of truth for all scoring constants; no weights are duplicated anywhere in the codebase
+- **Registry pattern** — `player_registry.py` decouples `Player.from_dict` from concrete subclass names using `@register` / `resolve`; adding a new player type requires no changes to deserialisation code
+- **DRY** — `config.py` is the single source of truth for all tuneable constants (scoring weights, API URLs, position maps, simulation parameters); `ScoreEngine` sources its values from there
 - **SRP** — `DataLoader`, `SaveManager`, and `ScoreEngine` each have exactly one reason to change; `App`'s state is isolated in a `GameState` dataclass, separating window management from game logic
 - **No circular imports** — `ScreenNavigator` centralises all screen transitions so screens never import each other; all dependencies flow in one direction
 
@@ -140,7 +153,7 @@ python -m venv .venv
 pip install -r requirements.txt
 
 # 4. Run the application
-python main.py
+python -m diamond_draft
 ```
 
 > **First run:** Select a season year on the home screen. The application fetches stats via the MLB Stats API (takes ~10–15 seconds).
@@ -164,6 +177,9 @@ python main.py
 - [x] Smart CPU draft (stat-prioritized picks with position-exhaustion fallback)
 - [x] Waiver Wire — drop/add players between weeks
 - [x] Detailed player stat view (headshot, stats table, points bar chart)
+- [x] Active lineup management — set a weekly 11-player lineup from a 14-player roster
+- [x] Injury system — players can miss 1–2 weeks with weekly_factor = 0
+- [x] Weekly performance variance — random multiplier per player per week
 - [ ] Playoffs after regular season (top 4 teams)
 - [ ] Achievements / milestones
 - [ ] Export season stats as CSV
