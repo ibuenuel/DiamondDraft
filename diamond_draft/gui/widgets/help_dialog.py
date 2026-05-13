@@ -1,26 +1,68 @@
+"""In-app reference guide for baseball rules, positions, stats, and scoring.
+
+Presents a tabbed, scrollable ``CTkToplevel`` dialog. The scoring tab
+dynamically reads weights from the injected ``ScoreEngine`` data so the
+displayed values are always in sync with the live scoring configuration —
+the dialog does not hard-code any weights itself.
+"""
 from __future__ import annotations
 
 import tkinter as tk
 
 import customtkinter as ctk
 
-from diamond_draft.engine.score_engine import ScoreEngine
 from diamond_draft.gui.app import ACCENT, DARK_BG, PANEL_BG, TEXT_PRIMARY, TEXT_SECONDARY
 
 
 def open_help(parent: tk.Widget) -> None:
-    """Open the Baseball Rules & Abbreviations help dialog."""
+    """Open the Baseball Rules & Abbreviations help dialog.
+
+    Args:
+        parent: The widget that will own the modal dialog.
+    """
     HelpDialog(parent)
 
 
 class HelpDialog(ctk.CTkToplevel):
-    """
-    Scrollable reference guide covering baseball basics, positions,
-    statistics, and the fantasy scoring system used in this app.
+    """Scrollable reference guide for baseball basics, positions, stats, and scoring.
+
+    The scoring tab accepts the ``ScoreEngine`` weights as optional constructor
+    parameters so that callers can inject test doubles or alternative weight
+    sets without subclassing. When omitted, the parameters default to the live
+    ``ScoreEngine`` values at call time.
+
+    Args:
+        parent: The parent widget that owns this dialog.
+        batting_weights: Points-per-unit mapping for batting stats.
+            Defaults to ``ScoreEngine.BATTING_WEIGHTS``.
+        pitching_weights: Points-per-unit mapping for pitching stats.
+            Defaults to ``ScoreEngine.PITCHING_WEIGHTS``.
+        era_bonus_threshold: ERA value below which the ERA bonus applies.
+            Defaults to ``ScoreEngine.ERA_BONUS_THRESHOLD``.
+        era_bonus: Flat bonus awarded when ERA qualifies.
+            Defaults to ``ScoreEngine.ERA_BONUS``.
     """
 
-    def __init__(self, parent: tk.Widget) -> None:
+    def __init__(
+        self,
+        parent: tk.Widget,
+        batting_weights: dict[str, float] | None = None,
+        pitching_weights: dict[str, float] | None = None,
+        era_bonus_threshold: float | None = None,
+        era_bonus: float | None = None,
+    ) -> None:
         super().__init__(parent)
+
+        # Deferred import keeps this module decoupled from the engine layer at
+        # module load time. Defaults are resolved lazily so mock weight dicts
+        # can be passed without touching ScoreEngine at all.
+        from diamond_draft.engine.score_engine import ScoreEngine
+
+        self._batting_weights     = batting_weights     or ScoreEngine.BATTING_WEIGHTS
+        self._pitching_weights    = pitching_weights    or ScoreEngine.PITCHING_WEIGHTS
+        self._era_bonus_threshold = era_bonus_threshold or ScoreEngine.ERA_BONUS_THRESHOLD
+        self._era_bonus           = era_bonus           or ScoreEngine.ERA_BONUS
+
         self.title("Baseball Rules & Abbreviations")
         self.geometry("780x560")
         self.minsize(660, 460)
@@ -30,8 +72,11 @@ class HelpDialog(ctk.CTkToplevel):
         self._build_ui()
 
     # ------------------------------------------------------------------
+    # Layout
+    # ------------------------------------------------------------------
 
     def _build_ui(self) -> None:
+        """Build the four-tab layout and populate each tab via builder methods."""
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
@@ -49,10 +94,10 @@ class HelpDialog(ctk.CTkToplevel):
         tabs.grid(row=0, column=0, sticky="nsew", padx=16, pady=16)
 
         for name, builder in [
-            ("Baseball Basics",  self._build_basics),
-            ("Positions",        self._build_positions),
-            ("Statistics",       self._build_statistics),
-            ("Scoring System",   self._build_scoring),
+            ("Baseball Basics", self._build_basics),
+            ("Positions",       self._build_positions),
+            ("Statistics",      self._build_statistics),
+            ("Scoring System",  self._build_scoring),
         ]:
             tabs.add(name)
             frame = ctk.CTkScrollableFrame(
@@ -69,6 +114,11 @@ class HelpDialog(ctk.CTkToplevel):
     # ------------------------------------------------------------------
 
     def _build_basics(self, parent: ctk.CTkScrollableFrame) -> None:
+        """Populate the Baseball Basics tab with introductory sections.
+
+        Args:
+            parent: The scrollable frame inside the tab.
+        """
         sections = [
             ("What is Baseball?",
              "Baseball is a bat-and-ball sport played between two teams of nine players. "
@@ -109,6 +159,11 @@ class HelpDialog(ctk.CTkToplevel):
             _section(parent, title, body)
 
     def _build_positions(self, parent: ctk.CTkScrollableFrame) -> None:
+        """Populate the Positions tab with one section per roster slot.
+
+        Args:
+            parent: The scrollable frame inside the tab.
+        """
         positions = [
             ("C  — Catcher",
              "Crouches behind home plate to receive pitches. Calls the game and controls the "
@@ -142,6 +197,11 @@ class HelpDialog(ctk.CTkToplevel):
             _section(parent, title, body)
 
     def _build_statistics(self, parent: ctk.CTkScrollableFrame) -> None:
+        """Populate the Statistics tab with batting and pitching stat explanations.
+
+        Args:
+            parent: The scrollable frame inside the tab.
+        """
         _heading(parent, "Batting Statistics")
         batting = [
             ("HR — Home Run",
@@ -191,6 +251,15 @@ class HelpDialog(ctk.CTkToplevel):
             _section(parent, title, body, indent=True)
 
     def _build_scoring(self, parent: ctk.CTkScrollableFrame) -> None:
+        """Populate the Scoring System tab using the injected weight data.
+
+        Reads from ``self._batting_weights`` and ``self._pitching_weights``
+        rather than importing ``ScoreEngine`` directly, so the displayed
+        values always reflect whatever weights were passed at construction.
+
+        Args:
+            parent: The scrollable frame inside the tab.
+        """
         _heading(parent, "How Fantasy Points are Calculated")
         _body(parent,
               "Each real-world statistic is multiplied by a weight to produce fantasy points. "
@@ -199,19 +268,19 @@ class HelpDialog(ctk.CTkToplevel):
         _heading(parent, "Batting Weights")
         _score_table(parent, ["Stat", "Points per Unit"], [
             (stat, f"{w:+.1f} pts")
-            for stat, w in ScoreEngine.BATTING_WEIGHTS.items()
+            for stat, w in self._batting_weights.items()
         ])
 
         _heading(parent, "Pitching Weights")
         _score_table(parent, ["Stat", "Points per Unit"], [
             (stat, f"{w:+.1f} pts")
-            for stat, w in ScoreEngine.PITCHING_WEIGHTS.items()
+            for stat, w in self._pitching_weights.items()
         ])
 
         _heading(parent, "ERA Bonus")
         _body(parent,
-              f"If a pitcher's ERA is below {ScoreEngine.ERA_BONUS_THRESHOLD:.2f}, "
-              f"they receive a bonus of +{ScoreEngine.ERA_BONUS:.1f} pts on top of their other stats.\n"
+              f"If a pitcher's ERA is below {self._era_bonus_threshold:.2f}, "
+              f"they receive a bonus of +{self._era_bonus:.1f} pts on top of their other stats.\n"
               "This rewards elite pitching performance.")
 
         _heading(parent, "Example Calculation")
@@ -228,10 +297,16 @@ class HelpDialog(ctk.CTkToplevel):
 
 
 # ---------------------------------------------------------------------------
-# Helper rendering functions
+# Module-level rendering helpers
 # ---------------------------------------------------------------------------
 
-def _heading(parent, text: str) -> None:
+def _heading(parent: ctk.CTkScrollableFrame, text: str) -> None:
+    """Render an accented section heading label inside *parent*.
+
+    Args:
+        parent: The scrollable container to pack the label into.
+        text: The heading text to display.
+    """
     ctk.CTkLabel(
         parent,
         text=text,
@@ -241,7 +316,13 @@ def _heading(parent, text: str) -> None:
     ).pack(fill="x", padx=16, pady=(16, 4))
 
 
-def _body(parent, text: str) -> None:
+def _body(parent: ctk.CTkScrollableFrame, text: str) -> None:
+    """Render a body paragraph label inside *parent*.
+
+    Args:
+        parent: The scrollable container to pack the label into.
+        text: The paragraph text to display.
+    """
     ctk.CTkLabel(
         parent,
         text=text,
@@ -253,7 +334,21 @@ def _body(parent, text: str) -> None:
     ).pack(fill="x", padx=16, pady=(0, 8))
 
 
-def _section(parent, title: str, body: str, indent: bool = False) -> None:
+def _section(
+    parent: ctk.CTkScrollableFrame,
+    title: str,
+    body: str,
+    indent: bool = False,
+) -> None:
+    """Render a titled section with a heading and a body paragraph.
+
+    Args:
+        parent: The scrollable container to pack labels into.
+        title: Bold section title text.
+        body: Paragraph text displayed below the title.
+        indent: When ``True``, adds extra left padding to indicate that this
+            section is a sub-item of the surrounding content.
+    """
     left = 32 if indent else 16
     ctk.CTkLabel(
         parent,
@@ -273,7 +368,18 @@ def _section(parent, title: str, body: str, indent: bool = False) -> None:
     ).pack(fill="x", padx=left + 4, pady=(0, 4))
 
 
-def _score_table(parent, headers: list[str], rows: list[tuple]) -> None:
+def _score_table(
+    parent: ctk.CTkScrollableFrame,
+    headers: list[str],
+    rows: list[tuple],
+) -> None:
+    """Render a two-column scoring reference table.
+
+    Args:
+        parent: The scrollable container to pack the table into.
+        headers: A two-element list of column header strings.
+        rows: A list of ``(stat_name, pts_string)`` tuples, one per table row.
+    """
     table = ctk.CTkFrame(parent, fg_color="#0f1b2d", corner_radius=8)
     table.pack(fill="x", padx=16, pady=(4, 8))
     table.grid_columnconfigure(0, weight=1)
@@ -299,6 +405,7 @@ def _score_table(parent, headers: list[str], rows: list[tuple]) -> None:
             text_color=color,
         ).grid(row=r, column=1, sticky="w", padx=14, pady=3)
 
+    # Visual divider at the bottom of the table.
     ctk.CTkFrame(table, height=1, fg_color="#2a2d3e", corner_radius=0).grid(
         row=len(rows) + 1, column=0, columnspan=2, sticky="ew", padx=8, pady=(4, 8)
     )

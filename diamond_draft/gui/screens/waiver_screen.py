@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import ttk
 
 import customtkinter as ctk
 
 from diamond_draft.gui.app import ACCENT, DARK_BG, PANEL_BG, TEXT_PRIMARY, TEXT_SECONDARY, App
+from diamond_draft.gui.widgets import dialog
 from diamond_draft.gui.widgets.player_table import PlayerTable
 from diamond_draft.gui.widgets.ui_helpers import (
     accent_button,
+    attach_scrollbar,
     body_label,
     card_frame,
     heading,
@@ -20,13 +22,19 @@ from diamond_draft.models.team import Team
 
 
 class WaiverScreen(ctk.CTkFrame):
-    """
-    Waiver Wire screen — lets the human team drop one roster player and
-    pick up one free-agent replacement after each simulated week.
+    """Waiver wire transaction screen.
 
-    Rules enforced:
-    - Available players are filtered to the same position as the dropped player.
-    - Exactly one drop + one add per visit (or the user skips with no changes).
+    Allows the human team to drop one roster player and claim one free-agent
+    replacement of the same position after each simulated week. The waiver pool
+    is computed by excluding all players already on any team's roster.
+
+    Transaction rules enforced by this screen:
+    - Selecting a player to drop filters the waiver pool to the same position.
+    - The Confirm button is only enabled when both a drop and an add are chosen.
+    - Skipping closes the screen without modifying the roster.
+
+    Args:
+        parent: The root ``App`` instance that owns this screen.
     """
 
     def __init__(self, parent: App) -> None:
@@ -87,10 +95,7 @@ class WaiverScreen(ctk.CTkFrame):
         self._roster_tree.column("name", width=180, anchor="w")
         self._roster_tree.column("pts",  width=65,  anchor="center", stretch=False)
 
-        vsb_left = ttk.Scrollbar(roster_inner, orient="vertical", command=self._roster_tree.yview)
-        self._roster_tree.configure(yscrollcommand=vsb_left.set)
-        vsb_left.pack(side="right", fill="y")
-        self._roster_tree.pack(fill="both", expand=True)
+        attach_scrollbar(self._roster_tree, roster_inner)
         self._roster_tree.bind("<<TreeviewSelect>>", self._on_roster_select)
 
         # Right: available waiver players
@@ -105,10 +110,7 @@ class WaiverScreen(ctk.CTkFrame):
         table_inner.pack(fill="both", expand=True, padx=8, pady=(0, 8))
 
         self._waiver_table = PlayerTable(table_inner, on_select=self._on_waiver_select)
-        vsb_right = ttk.Scrollbar(table_inner, orient="vertical", command=self._waiver_table.yview)
-        self._waiver_table.configure(yscrollcommand=vsb_right.set)
-        vsb_right.pack(side="right", fill="y")
-        self._waiver_table.pack(fill="both", expand=True)
+        attach_scrollbar(self._waiver_table, table_inner)
 
         # Action bar
         action = ctk.CTkFrame(self, fg_color="transparent")
@@ -197,10 +199,10 @@ class WaiverScreen(ctk.CTkFrame):
         self._human_team.roster.append(self._add_player)
         self._app.game.waiver_available = False
 
-        messagebox.showinfo(
+        dialog.show_success(
+            self,
             "Trade Complete",
-            f"Dropped  {self._drop_player.name}\n"
-            f"Added    {self._add_player.name}",
+            f"Dropped  {self._drop_player.name}\nAdded    {self._add_player.name}",
         )
         self._app.nav.to_season()
 

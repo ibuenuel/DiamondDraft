@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import threading
 import tkinter as tk
-from tkinter import messagebox
 
 import customtkinter as ctk
 
+from diamond_draft import config
 from diamond_draft.gui.app import ACCENT, DARK_BG, PANEL_BG, TEXT_PRIMARY, TEXT_SECONDARY, App
+from diamond_draft.gui.widgets import dialog
 from diamond_draft.gui.widgets.ui_helpers import (
     accent_button,
     body_label,
@@ -19,11 +20,14 @@ from diamond_draft.io.data_loader import DataLoader
 
 
 class HomeScreen(ctk.CTkFrame):
-    """
-    Start screen: New Game, Load Game, Quit.
+    """Start screen presenting the New Game, Load Game, and Quit options.
 
-    Data loading runs in a background thread to keep the UI responsive.
-    Results are passed back to the main thread via after().
+    Player data loading runs in a background thread (via ``threading.Thread``)
+    so the UI remains responsive while the MLB Stats API is queried. Results
+    are marshalled back to the main thread via ``widget.after(0, callback)``.
+
+    Args:
+        parent: The root ``App`` instance that owns this screen.
     """
 
     def __init__(self, parent: App) -> None:
@@ -113,7 +117,7 @@ class HomeScreen(ctk.CTkFrame):
         self._progress.stop()
         self._progress.pack_forget()
         self._status_var.set("Failed to load player data.")
-        messagebox.showerror("Data Load Error", str(exc))
+        dialog.show_error(self, "Data Load Error", str(exc))
 
     # ------------------------------------------------------------------
     # Button handlers
@@ -152,7 +156,7 @@ class HomeScreen(ctk.CTkFrame):
         sm = self._app.game.save_manager
         saves = sm.list_saves()
         if not saves:
-            messagebox.showinfo("Load Game", "No saved games found.")
+            dialog.show_info(self, "Load Game", "No saved games found.")
             return
 
         slot = _pick_save_slot(self._app, saves)
@@ -162,7 +166,7 @@ class HomeScreen(ctk.CTkFrame):
         try:
             teams, league, week = sm.load(slot=slot)
         except Exception as exc:
-            messagebox.showerror("Load Error", str(exc))
+            dialog.show_error(self, "Load Error", str(exc))
             return
 
         from diamond_draft.engine.season_simulator import SeasonSimulator
@@ -174,11 +178,16 @@ class HomeScreen(ctk.CTkFrame):
         self._app.nav.to_season()
 
 
-_AVAILABLE_YEARS = [2022, 2023, 2024, 2025]
-
-
 def _pick_year(parent: ctk.CTk, current_year: int) -> int | None:
-    """Modal dialog for choosing an MLB season year."""
+    """Show a modal dialog for choosing an MLB season year.
+
+    Args:
+        parent: The root window that owns this dialog.
+        current_year: Pre-selected year shown when the dialog opens.
+
+    Returns:
+        The selected year as an integer, or ``None`` if the user cancelled.
+    """
     dialog = ctk.CTkToplevel(parent)
     dialog.title("Select Season")
     dialog.geometry("300x260")
@@ -188,7 +197,7 @@ def _pick_year(parent: ctk.CTk, current_year: int) -> int | None:
     heading(dialog, "Choose a season", level=2).pack(pady=(24, 16))
 
     selected = tk.IntVar(value=current_year)
-    for year in _AVAILABLE_YEARS:
+    for year in config.AVAILABLE_YEARS:
         ctk.CTkRadioButton(
             dialog,
             text=str(year),
@@ -215,7 +224,15 @@ def _pick_year(parent: ctk.CTk, current_year: int) -> int | None:
 
 
 def _pick_team_name(parent: ctk.CTk) -> str | None:
-    """Modal dialog for the player to choose their team name."""
+    """Show a modal dialog for the user to enter their team name.
+
+    Args:
+        parent: The root window that owns this dialog.
+
+    Returns:
+        The entered team name (stripped), ``"Your Team"`` if left blank,
+        or ``None`` if the user cancelled.
+    """
     dialog = ctk.CTkToplevel(parent)
     dialog.title("Your Team")
     dialog.geometry("340x200")
@@ -258,7 +275,16 @@ def _pick_team_name(parent: ctk.CTk) -> str | None:
 
 
 def _pick_save_slot(parent: ctk.CTk, saves: list[str]) -> str | None:
-    """Simple modal dialog to choose a save slot from a list."""
+    """Show a modal dialog to select one save slot from the available list.
+
+    Args:
+        parent: The root window that owns this dialog.
+        saves: Non-empty list of save slot identifiers returned by
+            ``SaveManager.list_saves()``.
+
+    Returns:
+        The selected slot string, or ``None`` if the user cancelled.
+    """
     dialog = ctk.CTkToplevel(parent)
     dialog.title("Load Game")
     dialog.geometry("320x220")

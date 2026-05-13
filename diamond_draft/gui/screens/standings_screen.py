@@ -8,6 +8,7 @@ import customtkinter as ctk
 from diamond_draft.gui.app import ACCENT, DARK_BG, PANEL_BG, App
 from diamond_draft.gui.widgets.player_table import PlayerTable
 from diamond_draft.gui.widgets.ui_helpers import (
+    attach_scrollbar,
     card_frame,
     heading,
     secondary_button,
@@ -16,11 +17,14 @@ from diamond_draft.gui.widgets.ui_helpers import (
 
 
 class StandingsScreen(ctk.CTkFrame):
-    """
-    Full-page league standings with per-team roster detail.
+    """Full-page league standings with per-team roster detail.
 
-    Top section: league standings table (W/L/Pts).
-    Bottom section: roster view for the selected team.
+    The top section shows a sortable standings table (W/L/Pts). Selecting a
+    team row populates the bottom section with that team's full roster,
+    including each player's fantasy point total.
+
+    Args:
+        parent: The root ``App`` instance that owns this screen.
     """
 
     def __init__(self, parent: App) -> None:
@@ -81,12 +85,7 @@ class StandingsScreen(ctk.CTkFrame):
         roster_card.grid(row=3, column=0, sticky="nsew")
 
         self._roster_table = PlayerTable(roster_card)
-        vsb = ttk.Scrollbar(
-            roster_card, orient="vertical", command=self._roster_table.yview
-        )
-        self._roster_table.configure(yscrollcommand=vsb.set)
-        vsb.pack(side="right", fill="y")
-        self._roster_table.pack(fill="both", expand=True)
+        attach_scrollbar(self._roster_table, roster_card)
 
     # ------------------------------------------------------------------
     # Data loading

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import ttk
 
 import customtkinter as ctk
 
 from diamond_draft.gui.app import ACCENT, DARK_BG, PANEL_BG, TEXT_SECONDARY, App
+from diamond_draft.gui.widgets import dialog
 from diamond_draft.gui.widgets.ui_helpers import (
     accent_button,
     body_label,
@@ -18,11 +19,17 @@ from diamond_draft.models.matchup import Matchup
 
 
 class SeasonScreen(ctk.CTkFrame):
-    """
-    Main hub for the regular season.
+    """Main hub for the regular season.
 
-    Shows the current week, this week's matchups (once simulated), and
-    navigation to Standings.
+    Displays the current week number, this week's matchup preview, and action
+    buttons for simulating the next week, managing the lineup, making waiver
+    moves, viewing standings, and saving the game.
+
+    After all 10 weeks are simulated, the season-complete state is shown and
+    the simulate button is hidden.
+
+    Args:
+        parent: The root ``App`` instance that owns this screen.
     """
 
     def __init__(self, parent: App) -> None:
@@ -175,7 +182,7 @@ class SeasonScreen(ctk.CTkFrame):
         self._sync_waiver_btn()
         if sim.injury_report:
             report = "\n".join(sim.injury_report)
-            messagebox.showinfo("Injury Report", f"Players injured this week:\n\n{report}")
+            dialog.show_warning(self, "Injury Report", f"Players injured this week:\n\n{report}")
 
     def _on_waiver(self) -> None:
         self._app.nav.to_waiver()
@@ -207,4 +214,4 @@ class SeasonScreen(ctk.CTkFrame):
             simulator=self._app.game.simulator,
             slot="autosave",
         )
-        messagebox.showinfo("Saved", f"Game saved to {path.name}")
+        dialog.show_success(self, "Saved", f"Game saved to {path.name}")

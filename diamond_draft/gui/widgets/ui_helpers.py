@@ -1,4 +1,14 @@
+"""Reusable UI factory functions for Diamond Draft.
+
+Provides lightweight helper functions that create styled widgets so that
+screens and dialogs never inline raw styling parameters. All visual constants
+(colours, radii, fonts) are sourced from ``app.py`` — changing a colour there
+propagates everywhere automatically.
+"""
 from __future__ import annotations
+
+import tkinter as tk
+from tkinter import ttk
 
 import customtkinter as ctk
 
@@ -15,8 +25,42 @@ from diamond_draft.gui.app import (
 _RADIUS = 12
 
 
+def attach_scrollbar(tree: ttk.Treeview, parent: tk.Widget) -> ttk.Scrollbar:
+    """Attach a vertical scrollbar to *tree* and pack both into *parent*.
+
+    Eliminates the four-line setup pattern that was previously duplicated
+    across ``DraftScreen``, ``WaiverScreen``, ``LineupScreen``, and
+    ``StandingsScreen``.
+
+    Packing order: scrollbar first (right + fill y), then tree (fill both +
+    expand True). This is the canonical Treeview + Scrollbar layout in Tk.
+
+    Args:
+        tree: Any ``ttk.Treeview`` or subclass (including ``PlayerTable``).
+        parent: The container widget that already has *tree* as a child.
+
+    Returns:
+        The created and wired ``ttk.Scrollbar``, in case the caller needs
+        to hold a reference to it.
+    """
+    vsb = ttk.Scrollbar(parent, orient="vertical", command=tree.yview)
+    tree.configure(yscrollcommand=vsb.set)
+    vsb.pack(side="right", fill="y")
+    tree.pack(fill="both", expand=True)
+    return vsb
+
+
 def card_frame(parent: ctk.CTkBaseClass, radius: int = _RADIUS, **kw) -> ctk.CTkFrame:
-    """A rounded, dark-panel container — the main building block for all screens."""
+    """Return a rounded, dark-panel container — the main building block for all screens.
+
+    Args:
+        parent: The parent widget.
+        radius: Corner radius in pixels. Defaults to the application standard.
+        **kw: Additional keyword arguments forwarded to ``CTkFrame.__init__``.
+
+    Returns:
+        A styled ``CTkFrame`` with the panel background colour.
+    """
     return ctk.CTkFrame(parent, fg_color=PANEL_BG, corner_radius=radius, **kw)
 
 
@@ -27,7 +71,18 @@ def accent_button(
     width: int = 180,
     state: str = "normal",
 ) -> ctk.CTkButton:
-    """Primary action button in the brand accent colour."""
+    """Return a primary action button styled in the brand accent colour.
+
+    Args:
+        parent: The parent widget.
+        text: Button label text.
+        command: Callback invoked on click.
+        width: Pixel width. Defaults to 180.
+        state: ``"normal"`` or ``"disabled"``.
+
+    Returns:
+        A fully configured ``CTkButton``.
+    """
     return ctk.CTkButton(
         parent,
         text=text,
@@ -49,7 +104,18 @@ def secondary_button(
     width: int = 140,
     state: str = "normal",
 ) -> ctk.CTkButton:
-    """Secondary / navigation button in a muted dark-blue."""
+    """Return a secondary navigation button styled in a muted dark-blue.
+
+    Args:
+        parent: The parent widget.
+        text: Button label text.
+        command: Callback invoked on click.
+        width: Pixel width. Defaults to 140.
+        state: ``"normal"`` or ``"disabled"``.
+
+    Returns:
+        A fully configured ``CTkButton``.
+    """
     return ctk.CTkButton(
         parent,
         text=text,
@@ -70,11 +136,20 @@ def heading(
     level: int = 1,
     **kw,
 ) -> ctk.CTkLabel:
-    """
-    Hierarchical heading label.
-    level 1 → large accent title   (screens)
-    level 2 → medium white subhead (section titles)
-    level 3 → small muted caption  (hints / subtitles)
+    """Return a hierarchical heading label.
+
+    - **Level 1** — large accent-coloured title (screen headers).
+    - **Level 2** — medium white subheading (section titles).
+    - **Level 3** — small muted caption (hints / subtitles).
+
+    Args:
+        parent: The parent widget.
+        text: Heading text to display.
+        level: Hierarchy level (1, 2, or 3). Unknown values fall back to 2.
+        **kw: Additional keyword arguments forwarded to ``CTkLabel.__init__``.
+
+    Returns:
+        A styled ``CTkLabel``.
     """
     fonts = {
         1: ("Segoe UI", 22, "bold"),
@@ -98,7 +173,18 @@ def body_label(
     color: str = TEXT_SECONDARY,
     **kw,
 ) -> ctk.CTkLabel:
-    """Standard body / status text label."""
+    """Return a standard body or status text label.
+
+    Args:
+        parent: The parent widget.
+        text: Static label text. Ignored when *textvariable* is provided.
+        textvariable: A ``tk.StringVar`` whose value is displayed dynamically.
+        color: Text colour. Defaults to the secondary text colour.
+        **kw: Additional keyword arguments forwarded to ``CTkLabel.__init__``.
+
+    Returns:
+        A styled ``CTkLabel``.
+    """
     return ctk.CTkLabel(
         parent,
         text=text,
@@ -110,5 +196,12 @@ def body_label(
 
 
 def separator(parent: ctk.CTkBaseClass) -> ctk.CTkFrame:
-    """1-pixel horizontal divider line."""
+    """Return a 1-pixel horizontal divider line.
+
+    Args:
+        parent: The parent widget.
+
+    Returns:
+        A 2-pixel-tall ``CTkFrame`` styled as a thin divider.
+    """
     return ctk.CTkFrame(parent, height=2, fg_color="#2a2d3e", corner_radius=0)

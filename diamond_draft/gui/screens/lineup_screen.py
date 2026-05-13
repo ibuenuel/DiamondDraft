@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import ttk
 
 import customtkinter as ctk
 
 from diamond_draft.gui.app import ACCENT, DARK_BG, PANEL_BG, TEXT_SECONDARY, App
+from diamond_draft.gui.widgets import dialog
 from diamond_draft.gui.widgets.ui_helpers import (
     accent_button,
+    attach_scrollbar,
     body_label,
     card_frame,
     heading,
@@ -19,12 +21,20 @@ from diamond_draft.models.team import Team
 
 
 class LineupScreen(ctk.CTkFrame):
-    """
-    Weekly lineup manager — lets the human team move players between
-    Active (11, score this week) and Bench (3, sit out).
+    """Weekly lineup manager for the human team.
 
-    Interaction: click a player in either list to select it, then click
-    a player in the opposite list to swap them. Confirm saves the lineup.
+    Allows the user to move players between the active lineup (11 players who
+    score this week) and the bench (3 players who sit out).
+
+    Interaction model:
+    - Click a player in the Active list to select them.
+    - Click a player in the Bench list to select them.
+    - When one player from each list is selected, click "Swap" or click the
+      opposing player to execute the swap immediately.
+    - Confirm saves the lineup to the team and returns to SeasonScreen.
+
+    Args:
+        parent: The root ``App`` instance that owns this screen.
     """
 
     def __init__(self, parent: App) -> None:
@@ -99,10 +109,7 @@ class LineupScreen(ctk.CTkFrame):
             self._active_tree.heading(col, text=label)
             self._active_tree.column(col, width=width, anchor=anchor, stretch=col == "name")
 
-        vsb_left = ttk.Scrollbar(inner_left, orient="vertical", command=self._active_tree.yview)
-        self._active_tree.configure(yscrollcommand=vsb_left.set)
-        vsb_left.pack(side="right", fill="y")
-        self._active_tree.pack(fill="both", expand=True)
+        attach_scrollbar(self._active_tree, inner_left)
         self._active_tree.bind("<<TreeviewSelect>>", self._on_active_select)
 
         # Bench panel
@@ -136,10 +143,7 @@ class LineupScreen(ctk.CTkFrame):
             self._bench_tree.heading(col, text=label)
             self._bench_tree.column(col, width=width, anchor=anchor, stretch=col == "name")
 
-        vsb_right = ttk.Scrollbar(inner_right, orient="vertical", command=self._bench_tree.yview)
-        self._bench_tree.configure(yscrollcommand=vsb_right.set)
-        vsb_right.pack(side="right", fill="y")
-        self._bench_tree.pack(fill="both", expand=True)
+        attach_scrollbar(self._bench_tree, inner_right)
         self._bench_tree.bind("<<TreeviewSelect>>", self._on_bench_select)
 
         # Action bar
@@ -238,13 +242,14 @@ class LineupScreen(ctk.CTkFrame):
 
     def _on_confirm(self) -> None:
         if len(self._active) != Team.ACTIVE_SIZE:
-            messagebox.showerror(
+            dialog.show_error(
+                self,
                 "Invalid Lineup",
                 f"Active lineup must have exactly {Team.ACTIVE_SIZE} players.",
             )
             return
         self._team.active_lineup = list(self._active)
-        messagebox.showinfo("Lineup Set", "Your lineup has been saved for this week.")
+        dialog.show_success(self, "Lineup Set", "Your lineup has been saved for this week.")
         self._app.nav.to_season()
 
     def _on_back(self) -> None:

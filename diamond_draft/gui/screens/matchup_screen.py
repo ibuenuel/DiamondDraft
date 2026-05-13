@@ -14,11 +14,16 @@ from diamond_draft.models.team import Team
 
 
 class MatchupScreen(ctk.CTkFrame):
-    """
-    Detailed weekly matchup results.
+    """Detailed weekly matchup results.
 
-    Shows each matchup as a side-by-side card with per-player scores,
-    team totals, and the winner highlighted.
+    Renders each matchup as a side-by-side card showing each team's active
+    players, their individual fantasy point scores, team totals, and the
+    winning team highlighted in the accent colour.
+
+    Args:
+        parent: The root ``App`` instance that owns this screen.
+        matchups: The list of ``Matchup`` objects for the week to display.
+            Typically three matchups (one per pair of teams).
     """
 
     def __init__(self, parent: App, matchups: list[Matchup]) -> None:
