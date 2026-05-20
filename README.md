@@ -1,5 +1,11 @@
 # Diamond Draft
 
+![Tests](https://github.com/ibuenuel/DiamondDraft/actions/workflows/tests.yml/badge.svg)
+[![codecov](https://codecov.io/gh/ibuenuel/DiamondDraft/graph/badge.svg)](https://codecov.io/gh/ibuenuel/DiamondDraft)
+![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
+![Platform](https://img.shields.io/badge/platform-Windows-0078D4?logo=windows&logoColor=white)
+![GUI](https://img.shields.io/badge/GUI-CustomTkinter-1f538d)
+
 **MLB Fantasy League Simulator** — OOP Course Project (Wirtschaftsinformatik, 2026)
 
 Diamond Draft is a local MLB Fantasy League Simulator with a graphical desktop interface.
