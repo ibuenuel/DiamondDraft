@@ -78,6 +78,21 @@ The active lineup is set by the user each week via the Lineup screen.
 ```
 DiamondDraft/
 ├── requirements.txt
+├── pyproject.toml                   # pytest configuration
+│
+├── tests/                           # Unit test suite (179 tests)
+│   ├── conftest.py                  # Shared fixtures (player/team/league factories)
+│   ├── models/
+│   │   ├── test_player.py
+│   │   ├── test_player_registry.py
+│   │   ├── test_team.py
+│   │   ├── test_matchup.py
+│   │   └── test_league.py
+│   └── engine/
+│       ├── test_score_engine.py
+│       ├── test_draft_system.py
+│       ├── test_season_simulator.py
+│       └── test_playoff_simulator.py
 │
 ├── data/                            # Auto-populated on first run (gitignored)
 ├── saves/                           # JSON save slots (gitignored)
@@ -164,6 +179,26 @@ python -m diamond_draft
 
 ---
 
+## Tests
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run with coverage report (models + engine layers)
+pytest tests/ --cov=diamond_draft --cov-report=term-missing
+```
+
+| Layer | Coverage |
+|---|---|
+| `models/` (player, team, league, matchup, registry) | **100%** |
+| `engine/` (score, draft, season, playoff) | **97–100%** |
+| `config.py` | **100%** |
+
+> GUI layer (`gui/`) is excluded from automated tests — requires a running Tk display.
+
+---
+
 ## Minimum Goals (guaranteed by course end)
 
 - [x] Load player data via MLB Stats API
@@ -184,8 +219,7 @@ python -m diamond_draft
 - [x] Injury system — players can miss 1–2 weeks with weekly_factor = 0
 - [x] Weekly performance variance — random multiplier per player per week
 - [x] Playoffs after regular season (top 4 teams) — animated bracket, score reveal, champion dialog
-- [ ] Achievements / milestones
-- [ ] Export season stats as CSV
+- [x] Unit test suite — 179 tests, 100% coverage on all models and engine layers
 
 ---
 

@@ -23,8 +23,13 @@ ENV/
 *.swo
 
 # Runtime data
-data/players_2024.json
 saves/*.json
+
+# Test & coverage
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
 
 # OS
 .DS_Store
@@ -33,5 +38,5 @@ Thumbs.db
 # Logs
 *.log
 
-# Data File
+# Cached player data
 data/players_*.json
