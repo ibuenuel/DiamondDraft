@@ -228,6 +228,9 @@ pytest tests/ --cov=diamond_draft --cov-report=term-missing
 - [x] Unit test suite — 179 tests, 100% coverage on all models and engine layers
 - [ ] Achievements / milestones
 - [ ] Export season stats as CSV
+- [ ] AI-Assisted Draft Assistant
+- [ ] Multiplayer Support
+- [ ] Mobile Port
 
 ---
 
