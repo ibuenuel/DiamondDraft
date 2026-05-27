@@ -226,6 +226,8 @@ pytest tests/ --cov=diamond_draft --cov-report=term-missing
 - [x] Weekly performance variance — random multiplier per player per week
 - [x] Playoffs after regular season (top 4 teams) — animated bracket, score reveal, champion dialog
 - [x] Unit test suite — 179 tests, 100% coverage on all models and engine layers
+- [ ] Achievements / milestones
+- [ ] Export season stats as CSV
 
 ---
 
