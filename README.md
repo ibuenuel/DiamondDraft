@@ -36,25 +36,23 @@ CPU-managed teams. Scoring is based on real MLB statistics fetched via the
 
 ### Batting
 
-| Statistic        | Points |
-|------------------|--------|
-| Home Run (HR)    | +4     |
-| RBI              | +1     |
-| Run (R)          | +1     |
-| Stolen Base (SB) | +2     |
-| Hit (H)          | +1     |
-| Strikeout (SO)   | −1     |
+```mermaid
+xychart-beta
+    title "Batting Points per Statistic"
+    x-axis ["HR", "RBI", "Run (R)", "SB", "Hit (H)", "Strikeout (SO)"]
+    y-axis "Points" -2 --> 5
+    bar [4, 1, 1, 2, 1, -1]
+```
 
 ### Pitching
 
-| Statistic           | Points |
-|---------------------|--------|
-| Win (W)             | +4     |
-| Strikeout (SO)      | +1     |
-| Innings Pitched (IP)| +1     |
-| Save (SV)           | +4     |
-| ERA < 3.00 (bonus)  | +2     |
-| Loss (L)            | −4     |
+```mermaid
+xychart-beta
+    title "Pitching Points per Statistic"
+    x-axis ["Win (W)", "K (SO)", "IP", "Save (SV)", "ERA < 3", "Loss (L)"]
+    y-axis "Points" -5 --> 5
+    bar [4, 1, 1, 4, 2, -4]
+```
 
 ---
 
@@ -63,19 +61,18 @@ CPU-managed teams. Scoring is based on real MLB statistics fetched via the
 Each team holds **14 players**: 11 active (scoring) and 3 bench (non-scoring).
 The active lineup is set by the user each week via the Lineup screen.
 
-| Position              | Active Slots |
-|-----------------------|-------------|
-| Starting Pitcher (SP) | 2           |
-| Catcher (C)           | 1           |
-| First Baseman (1B)    | 1           |
-| Second Baseman (2B)   | 1           |
-| Third Baseman (3B)    | 1           |
-| Shortstop (SS)        | 1           |
-| Outfielder (OF)       | 3           |
-| Designated Hitter (DH)| 1           |
-| **Active Total**      | **11**      |
-| Bench                 | 3           |
-| **Full Roster**       | **14**      |
+```mermaid
+pie title Roster Composition (14 Players Total)
+    "SP — Starting Pitcher (2)" : 2
+    "C — Catcher (1)" : 1
+    "1B — First Baseman (1)" : 1
+    "2B — Second Baseman (1)" : 1
+    "3B — Third Baseman (1)" : 1
+    "SS — Shortstop (1)" : 1
+    "OF — Outfielder (3)" : 3
+    "DH — Designated Hitter (1)" : 1
+    "Bench (3)" : 3
+```
 
 ---
 
@@ -146,10 +143,12 @@ DiamondDraft/
 
 The project is strictly object-oriented, following **DRY**, **KISS**, and **SOLID** principles.
 
-```
-GUI  →  engine  →  models
- |          |
- └──  io  ──┘  →  models
+```mermaid
+flowchart LR
+    GUI --> engine
+    GUI --> io
+    engine --> models
+    io --> models
 ```
 
 - **Inheritance** — `Player` is an abstract base class; `Batter` and `Pitcher` inherit from it and implement `calculate_fantasy_points()`
@@ -195,11 +194,13 @@ pytest tests/
 pytest tests/ --cov=diamond_draft --cov-report=term-missing
 ```
 
-| Layer | Coverage |
-|---|---|
-| `models/` (player, team, league, matchup, registry) | **100%** |
-| `engine/` (score, draft, season, playoff) | **97–100%** |
-| `config.py` | **100%** |
+```mermaid
+xychart-beta
+    title "Test Coverage by Layer"
+    x-axis ["models/", "engine/", "config.py"]
+    y-axis "Coverage %" 0 --> 100
+    bar [100, 98, 100]
+```
 
 > GUI layer (`gui/`) is excluded from automated tests — requires a running Tk display.
 
