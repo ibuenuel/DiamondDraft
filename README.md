@@ -78,63 +78,62 @@ pie title Roster Composition (14 Players Total)
 
 ## Project Structure
 
-```
-DiamondDraft/
-├── requirements.txt
-├── pyproject.toml                   # pytest configuration
-│
-├── tests/                           # Unit test suite (179 tests)
-│   ├── conftest.py                  # Shared fixtures (player/team/league factories)
-│   ├── models/
-│   │   ├── test_player.py
-│   │   ├── test_player_registry.py
-│   │   ├── test_team.py
-│   │   ├── test_matchup.py
-│   │   └── test_league.py
-│   └── engine/
-│       ├── test_score_engine.py
-│       ├── test_draft_system.py
-│       ├── test_season_simulator.py
-│       └── test_playoff_simulator.py
-│
-├── data/                            # Auto-populated on first run (gitignored)
-├── saves/                           # JSON save slots (gitignored)
-│
-└── diamond_draft/
-    ├── __main__.py                  # Entry point (python -m diamond_draft)
-    ├── config.py                    # All tuneable constants, API URLs, position maps
-    ├── models/
-    │   ├── player.py                # Player (ABC), Batter, Pitcher
-    │   ├── player_registry.py       # Registry pattern for Player deserialisation
-    │   ├── team.py                  # Team with roster + active lineup management
-    │   ├── matchup.py               # Weekly head-to-head matchup
-    │   └── league.py                # League: teams, schedule, standings
-    ├── engine/
-    │   ├── score_engine.py          # Stateless fantasy point calculator
-    │   ├── draft_system.py          # Snake draft logic + CPU picks
-    │   ├── season_simulator.py      # Week-by-week season orchestration
-    │   └── playoff_simulator.py     # Two-round knockout playoff engine
-    ├── io/
-    │   ├── data_loader.py           # MLB Stats API fetch + local JSON cache
-    │   └── save_manager.py          # Full game state JSON persistence
-    └── gui/
-        ├── app.py                   # Root Tk window + GameState + screen router
-        ├── navigation.py            # ScreenNavigator — centralised screen transitions
-        ├── screens/
-        │   ├── home_screen.py           # Start / Load / Quit
-        │   ├── draft_screen.py          # Interactive snake draft
-        │   ├── lineup_screen.py         # Weekly active lineup management
-        │   ├── season_screen.py         # Weekly simulation controls
-        │   ├── standings_screen.py      # League standings table
-        │   ├── matchup_screen.py        # Per-week matchup detail
-        │   ├── waiver_screen.py         # Post-week free-agent transactions
-        │   └── playoff_bracket_screen.py# Animated playoff bracket UI
-        └── widgets/
-            ├── player_table.py      # Reusable sortable Treeview widget
-            ├── player_detail_dialog.py  # Player popup: stats, headshot, bar chart
-            ├── dialog.py            # Themed modal dialogs (replaces tkinter.messagebox)
-            ├── help_dialog.py       # In-app baseball rules & scoring reference
-            └── ui_helpers.py        # Shared CTk component factory functions
+```mermaid
+mindmap
+  root((DiamondDraft))
+    Config
+      requirements.txt
+      pyproject.toml
+    tests/
+      conftest.py
+      models/
+        test_player.py
+        test_player_registry.py
+        test_team.py
+        test_matchup.py
+        test_league.py
+      engine/
+        test_score_engine.py
+        test_draft_system.py
+        test_season_simulator.py
+        test_playoff_simulator.py
+    data/
+    saves/
+    diamond_draft/
+      __main__.py
+      config.py
+      models/
+        player.py
+        player_registry.py
+        team.py
+        matchup.py
+        league.py
+      engine/
+        score_engine.py
+        draft_system.py
+        season_simulator.py
+        playoff_simulator.py
+      io/
+        data_loader.py
+        save_manager.py
+      gui/
+        app.py
+        navigation.py
+        screens/
+          home_screen.py
+          draft_screen.py
+          lineup_screen.py
+          season_screen.py
+          standings_screen.py
+          matchup_screen.py
+          waiver_screen.py
+          playoff_bracket_screen.py
+        widgets/
+          player_table.py
+          player_detail_dialog.py
+          dialog.py
+          help_dialog.py
+          ui_helpers.py
 ```
 
 ---
