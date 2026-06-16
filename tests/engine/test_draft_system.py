@@ -234,6 +234,17 @@ def test_cpu_pick_empty_pool_raises_runtime_error(make_team):
         draft.cpu_pick()
 
 
+def test_cpu_pick_no_position_match_returns_best_available(make_team, player_pool):
+    """cpu_pick falls back to best remaining player when no slot fits any position."""
+    teams = [make_team(name=f"T{i}", is_human=(i == 0)) for i in range(6)]
+    draft = DraftSystem(teams=teams, player_pool=player_pool)
+    # No position will match — forces the fallback path (draft_system.py:156)
+    draft.current_team.needs_position = lambda pos: False
+    best = draft.available_players()[0]
+    result = draft.cpu_pick()
+    assert result is best
+
+
 # ---------------------------------------------------------------------------
 # advance_cpu_turns
 # ---------------------------------------------------------------------------

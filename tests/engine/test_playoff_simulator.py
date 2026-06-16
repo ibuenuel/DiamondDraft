@@ -298,3 +298,42 @@ def test_simulate_round_updates_injury_report(make_team):
     sim._applier.set_cpu_lineups = lambda teams: None
     sim.simulate_round()
     assert sim.injury_report == ["Player X injured"]
+
+
+def test_simulate_round_unexpected_state_raises_runtime_error(make_team):
+    """Triggers playoff_simulator.py:140 — corrupt round state with no champion."""
+    seeds = _make_seeds(make_team)
+    sim = PlayoffSimulator(seeds)
+    _noop_applier(sim)
+    # current_round is not 0 or 1, but champion is None → is_complete is False
+    sim.current_round = 3
+    with pytest.raises(RuntimeError, match="Unexpected playoff state"):
+        sim.simulate_round()
+
+
+def test_semifinal_away_wins_when_away_scores_higher(make_team):
+    """Triggers playoff_simulator.py:182 — away team wins a non-tied matchup."""
+    seeds = _make_seeds(make_team)
+    sim = PlayoffSimulator(seeds)
+    _noop_applier(sim)
+    # SF1: away (seeds[3]) scores more → seeds[3] wins; SF2: home (seeds[1]) wins
+    with patch("diamond_draft.engine.playoff_simulator.Matchup.scores",
+               side_effect=[(0.0, 100.0), (100.0, 0.0)]):
+        results = sim.simulate_round()
+    assert results[0].winner is seeds[3]
+
+
+def test_final_lower_seed_index_is_home_after_sf_upset(make_team):
+    """Triggers playoff_simulator.py:161 — w2 is home because w1 had a worse seed index."""
+    # SF1 upset: seeds[3] beats seeds[0] → seed_w1=3
+    # SF2 normal: seeds[1] beats seeds[2] → seed_w2=1
+    # 3 > 1, so the else branch at line 161 runs and seeds[1] (w2) is home in the Final
+    seeds = _make_seeds(make_team)
+    sim = PlayoffSimulator(seeds)
+    _noop_applier(sim)
+    with patch("diamond_draft.engine.playoff_simulator.Matchup.scores",
+               side_effect=[(0.0, 100.0), (100.0, 0.0), (100.0, 0.0)]):
+        sim.simulate_round()   # semifinals
+        sim.simulate_round()   # final
+    assert sim.final_result.home is seeds[1]
+    assert sim.champion is seeds[1]
